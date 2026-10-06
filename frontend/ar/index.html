@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>AR Passport — WebAR Scanner</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- A-Frame 1.4+ + MindAR image tracking (CDN, needs HTTPS on deploy for camera) -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script src="./config.js"></script>
+</head>
+<body>
+  <noscript><p class="noscript">This WebAR scanner needs JavaScript.</p></noscript>
+
+  <!-- Backend / status banner -->
+  <div id="backend-status" data-kind="info" role="status">Backend: checking…</div>
+  <div id="status-banner" data-kind="info" role="alert" aria-live="polite" hidden></div>
+
+  <!-- AR scene. targets.mind order MUST be MARK-001..005 (indices 0..4); see targets/README.md.
+       autoStart:false so the Start overlay (camera explainer) always comes first. -->
+  <a-scene
+    id="ar-scene"
+    mindar-image="imageTargetSrc: ./targets/targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-entity mindar-image-target="targetIndex: 0" data-marker="MARK-001"></a-entity>
+    <a-entity mindar-image-target="targetIndex: 1" data-marker="MARK-002"></a-entity>
+    <a-entity mindar-image-target="targetIndex: 2" data-marker="MARK-003"></a-entity>
+    <a-entity mindar-image-target="targetIndex: 3" data-marker="MARK-004"></a-entity>
+    <a-entity mindar-image-target="targetIndex: 4" data-marker="MARK-005"></a-entity>
+  </a-scene>
+
+  <!-- Scanning hint (visible while the camera is live) -->
+  <div id="scan-hint" hidden>
+    <span aria-hidden="true">◎</span>
+    Point at a printed marker — MARK-001 … MARK-005
+  </div>
+
+  <!-- Camera error (denied / no camera / insecure context) -->
+  <p id="camera-error" role="alert" hidden></p>
+
+  <!-- Start overlay: camera permission explanation FIRST -->
+  <div id="start-overlay" role="dialog" aria-modal="true" aria-labelledby="start-title">
+    <div class="card">
+      <h1 id="start-title">AR Passport Scanner</h1>
+      <p>
+        This scanner uses your <strong>camera</strong> to detect printed equipment
+        markers and open their digital passport. The video stays on your device —
+        only the marker id (e.g. <code>MARK-001</code>) is sent to the API.
+      </p>
+      <p id="permission-note" class="muted">
+        On start, the browser will ask for camera permission. You must
+        <strong>Allow</strong> it for AR tracking. Camera requires
+        <strong>HTTPS</strong> (or <code>localhost</code> for local testing).
+      </p>
+      <h2>Markers to scan</h2>
+      <ul class="target-list">
+        <li><code>MARK-001</code> — AST-001 · Projector</li>
+        <li><code>MARK-002</code> — AST-002 · 3D Printer</li>
+        <li><code>MARK-003</code> — AST-003 · Oscilloscope</li>
+        <li><code>MARK-004</code> — AST-004 · VR Headset</li>
+        <li><code>MARK-005</code> — AST-005 · Air Conditioner</li>
+      </ul>
+      <div class="api-row">
+        <label for="api-base-input">API base URL</label>
+        <input id="api-base-input" type="url" inputmode="url" spellcheck="false" />
+        <button id="api-base-save" type="button">Save</button>
+      </div>
+      <div class="btn-row">
+        <button id="btn-start" type="button" class="primary">Start AR scan</button>
+        <button id="btn-manual-only" type="button">Test without camera</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset passport bottom-sheet -->
+  <section id="passport" aria-label="Asset passport" hidden>
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="passport-head">
+      <img id="passport-img" alt="" />
+      <div id="passport-img-fallback" class="img-fallback" hidden>No photo</div>
+      <div class="passport-titles">
+        <h2 id="passport-title">Asset</h2>
+        <p id="passport-subtitle" class="muted"></p>
+        <span id="passport-status" class="badge">—</span>
+      </div>
+    </div>
+    <dl id="passport-meta"></dl>
+    <p id="passport-model-note" class="muted"></p>
+    <p id="passport-desc" hidden></p>
+    <div class="btn-grid">
+      <button id="btn-details" type="button" aria-expanded="false">View Details</button>
+      <button id="btn-maintenance" type="button">Maintenance History</button>
+      <button id="btn-report" type="button">Report Issue</button>
+      <button id="btn-close" type="button" class="secondary">Close</button>
+    </div>
+  </section>
+
+  <!-- Maintenance history overlay -->
+  <div id="maintenance-modal" role="dialog" aria-modal="true" aria-labelledby="maint-title" hidden>
+    <div class="card">
+      <h2 id="maint-title">Maintenance History</h2>
+      <ul id="maintenance-list"></ul>
+      <button id="maintenance-close" type="button" class="secondary">Back</button>
+    </div>
+  </div>
+
+  <!-- Report issue overlay -->
+  <div id="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-heading" hidden>
+    <div class="card">
+      <h2 id="report-heading">Report Issue</h2>
+      <label for="report-title">Title (min 3 chars)</label>
+      <input id="report-title" type="text" maxlength="120" autocomplete="off" />
+      <label for="report-desc">Description</label>
+      <textarea id="report-desc" rows="3" maxlength="2000"></textarea>
+      <label for="report-by">Reported by</label>
+      <input id="report-by" type="text" value="webar-user" maxlength="80" autocomplete="off" />
+      <p id="report-status" role="status" aria-live="polite"></p>
+      <div class="btn-row">
+        <button id="report-submit" type="button" class="primary">Submit</button>
+        <button id="report-close" type="button" class="secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual testing without camera -->
+  <div id="manual-bar" hidden>
+    <label for="manual-marker">Marker</label>
+    <select id="manual-marker" aria-label="Known markers"></select>
+    <input id="manual-marker-input" type="text" placeholder="or type MARK-001…" aria-label="Type a marker id" />
+    <button id="manual-simulate" type="button">Simulate scan</button>
+    <span class="muted">Deep link: <code>?marker=MARK-001</code></span>
+  </div>
+
+  <!-- Loading overlay (slow network feedback) -->
+  <div id="loader" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="loader-text">Loading…</p>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

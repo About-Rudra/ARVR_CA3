@@ -1,74 +1,109 @@
 # TEST PLAN — AR Passport (DEV4 QA)
 
-End-to-end flow: **Dashboard → AR scan `MARK-001` → passport → maintenance →
-report issue → dashboard shows `in_progress`**. Owners: DEV1 = AR
-(`AssetProvider` + `ARBootstrap` runtime scene builder + `ARMarkerTracker`
-with Editor sim keys `1/2/3`), DEV2 = Core/Backend/DB
-(`ApiClient`/`ApiConfig`/`Models`/`LocalSeedProvider`, `Backend/`,
-`database/`, `tests/api.test.js`), DEV3 = Dashboard bridge/UI (`DashboardApiAdapter` via reflection over
-`ApiClient`, models, seed provider; **scenes `Boot`/`Dashboard` still missing**), DEV4 = this
-plan + `tests/validate_integration.ps1` + `Assets/Tests/IntegrationCheck.cs`
-(+ DEV2 `DataTests.cs` for seed shapes).
+End-to-end target flow: **deployed app → AR scanner (`?marker=MARK-001`) →
+`GET /api/assets/marker/:markerId` → `GET /api/assets/:id` → passport →
+`GET /api/assets/:id/maintenance` → `POST /api/issues` → dashboard shows the
+issue → `PATCH /api/issues/:id/status` → reflects updated.**
 
-Run the automated gate first (no Unity needed):
+Owners: DEV1 = WebAR (`frontend/ar/` A-Frame+MindAR, `?marker=` deep link,
+manual `Simulate scan` fallback), DEV2 = API/DB (`Backend/server.js`,
+`Backend/seedData.js`, `database/schema.sql`+`seed.sql`, `tests/api.test.js`),
+DEV3 = web dashboard (`frontend/dashboard/` vanilla, real API + offline
+sample fallback), DEV4 = this plan + `tests/validate_integration.ps1` +
+deployment docs. Unity under `Assets/` is legacy (APK alternative path).
 
-```powershell
-powershell -ExecutionPolicy Bypass -File ./tests/validate_integration.ps1
-powershell -ExecutionPolicy Bypass -File ./tests/validate_integration.ps1 -Strict    # pre-demo: warnings are errors
-powershell -ExecutionPolicy Bypass -File ./tests/validate_integration.ps1 -ProbeApi  # also probe backend endpoints
-```
-
-Backend unit tests (DEV2, needs `npm install` in `Backend/`):
+Run the automated gates first (no device needed):
 
 ```powershell
-cd Backend; npm test          # jest + supertest over tests/api.test.js (in-memory seed, no DB needed)
+cd Backend; npm test          # jest + supertest over tests/api.test.js (in-memory seed, no DB needed) — must pass 8/8
+node --check ../frontend/ar/app.js; node --check ../frontend/ar/config.js
+node --check ../frontend/dashboard/app.js; node --check ../frontend/dashboard/config.js
+powershell -ExecutionPolicy Bypass -File ../tests/validate_integration.ps1
+powershell -ExecutionPolicy Bypass -File ../tests/validate_integration.ps1 -ProbeApi  # also probes a running backend
 ```
 
-In-Unity: Test Runner → EditMode → `ArPassport.Tests.IntegrationCheck`
-(+ `ArPassport.Tests.DataTests.RunAll()` from an editor button).
+Manual API probe of the target flow (backend on `http://localhost:3000`):
 
-## Frozen contracts (validator-enforced)
+```powershell
+(Invoke-WebRequest http://localhost:3000/health -UseBasicParsing).Content
+(Invoke-WebRequest http://localhost:3000/api/assets/marker/MARK-001 -UseBasicParsing).Content  # -> {"assetId":"AST-001"}
+(Invoke-WebRequest http://localhost:3000/api/assets/AST-001 -UseBasicParsing).Content
+(Invoke-WebRequest http://localhost:3000/api/assets/AST-001/maintenance -UseBasicParsing).Content  # >= 2 rows
+$b = @{ assetId='AST-001'; title='QA probe'; description='verify dashboard visibility'; reportedBy='qa' } | ConvertTo-Json
+$id = (Invoke-RestMethod http://localhost:3000/api/issues -Method POST -Body $b -ContentType 'application/json').id
+Invoke-RestMethod "http://localhost:3000/api/issues/$id/status" -Method PATCH -Body (@{status='in_progress'} | ConvertTo-Json) -ContentType 'application/json'
+Invoke-RestMethod "http://localhost:3000/api/issues?assetId=AST-001"   # new issue visible with status in_progress
+```
 
-- Backend origin `http://localhost:3000` (no `/api` suffix); health at
-  **`GET /health`** → `200 {"ok":true,...}` (root, not `/api/health`).
+## Frozen contracts (validator + jest enforced)
+
+- Backend origin `http://localhost:3000` for local dev (no `/api` suffix);
+  health at **`GET /health`** → `200 {"ok":true,...}` (root, not `/api/health`).
 - Error envelope `{error:{code,message}}` (`MARKER_NOT_FOUND`, `ASSET_NOT_FOUND`,
-  `VALIDATION_ERROR`, `ISSUE_NOT_FOUND`, ...).
+  `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `ASSET_CONFLICT`, `MARKER_CONFLICT`,
+  `NOT_FOUND`, `INTERNAL_ERROR`).
 - Marker lookup `GET /api/assets/marker/:markerId` → `200 {"assetId":"AST-00x"}`;
   unknown marker → `404 MARKER_NOT_FOUND`.
+- Asset shape: `{id,name,category,location,status,description,imageUrl,modelUrl,
+  lastMaintenance,nextMaintenance,markerId}`; `status` ∈
+  `operational|under_maintenance|faulty|retired`.
 - Issue status update is **`PATCH /api/issues/:id/status`** with
   `{"status":"open|in_progress|resolved|closed"}`.
-- Unity override key **`AR_API_BASE_URL`** (case-sensitive, shared by
-  `ApiConfig` and `AppBootstrapper`); base URLs never end with `/api`.
-- Offline seed `Assets/Resources/seed_assets.json` mirrors `database/seed.sql`
-  (5 assets `AST-001..005` ↔ `MARK-001..005`, locations, maintenance, issues).
+- Web API-base resolution: **`window.__API_BASE_URL`** → **`localStorage
+  "AR_API_BASE_URL"`** → `http://localhost:3000` dev default (AR page also
+  accepts `?api=` once, which persists). No production URL is hardcoded.
+- CORS: open by default for dev (`CORS_ORIGIN` empty); restrict to deployed
+  frontend origin(s) in production.
+- Demo seed (single truth = `Backend/seedData.js` = `database/seed.sql` =
+  `Assets/Resources/seed_assets.json` = dashboard offline SAMPLE =
+  `frontend/ar` marker list): 5 assets `AST-001..005` ↔ `MARK-001..005`,
+  3 locations (`CL-6`, `FAB-LAB`, `AR-LAB`), 6 maintenance rows, 3 issues.
 - `MARK-001` = Epson EB-X49 projector (`AST-001`, location `CL-6`) — the demo marker.
+- `targets.mind` is a build artifact, NOT in git — without it only live camera
+  tracking is unavailable; manual simulation + `?marker=` always work.
 
-## Checklists A–N
+## Checklists A–N (web flow)
 
 | # | Area | Steps | Expect | Owner |
 |---|------|-------|--------|-------|
-| A | Fresh setup | Clone → Unity 2022.3.9f1 + Android module, Node 20 LTS, psql → `npm install` in `Backend/` → open project | No console errors; `ProjectVersion.txt` matches Hub version | DEV4/DEV2 |
-| B | Backend up | `copy .env.example Backend\.env`, set `DATABASE_URL` (or leave empty for seed store), `npm start` → `GET /health` | `200 {"ok":true}`; log shows `postgres: true/false` | DEV2 |
-| C | Scenes | `Boot` first in Build Settings, then `Dashboard`, `ARScanner`; play Boot | Boot auto-routes to Dashboard; loading screen flashes; missing scene → clear error, no crash | DEV4+DEV3 |
-| D | DB migrate+seed | `psql $DATABASE_URL -f database/schema.sql` then `-f database/seed.sql` → count | 3 locations, 5 assets incl. `MARK-001`, 6 maintenance rows, 3 issues | DEV2 |
-| E | Dashboard list | Open Dashboard scene, online | All seeded assets render with name + status | DEV3 (WIP) |
-| F | AR sim (Editor) | Open ARScanner (intentionally empty scene; `ARBootstrap` auto-builds stack), press `1/2/3` (`ARMarkerTracker`) | Fake detection of `MARK-001/002/003`; passport panel opens | DEV1 |
-| G | Marker→asset | Resolve `MARK-001` → `GET /api/assets/AST-001` (or `LocalSeedProvider` offline) | Passport shows Epson projector details | DEV1+DEV2 |
-| H | Maintenance | `GET /api/assets/AST-001/maintenance` | ≥2 records (MNT-001/002); empty array (not error) for assets without | DEV2+DEV3 |
-| I | Issue create→visible→update | `POST /api/issues {assetId,title}` → `201` → dashboard list → `PATCH /:id/status {in_progress}` | New issue visible; status persists + refreshes | ALL |
-| J | Backend down | Stop backend, relaunch app | Offline banner; `NETWORK_ERROR` → `LocalSeedProvider` fallback; no crash | DEV4+DEV2 |
-| K | Invalid marker | `GET /api/assets/marker/MARK-999` / unknown sim marker | `404 MARKER_NOT_FOUND`; scanner shows not-found card, stays in scene | DEV1+DEV2 |
-| L | Nonexistent asset | `GET /api/assets/NOPE-999` | `404 ASSET_NOT_FOUND`; Unity not-found UI, single log | DEV2+DEV1 |
-| M | Malformed issue | `POST /api/issues` with `{}` / bad `assetId` / short title | `400 VALIDATION_ERROR` (or `404 ASSET_NOT_FOUND`); Unity surfaces message, no exception | DEV2+DEV1 |
-| N | DB down / empty DB / camera denied / mobile-browser | Kill Postgres / seed zero rows / deny permission / open in mobile browser | DB down: `500 INTERNAL_ERROR` → offline UI; empty DB: dashboard empty-state ("run seed"); camera denied: Android rationale + retry (see `DEPLOYMENT.md`); mobile browser: N/A — native ARCore app, no WebAR path | DEV4+DEV2 |
+| A | Fresh setup | Fresh clone → Node 20 LTS → `cd Backend; npm install` → `copy ..\.env.example .env` (leave `DATABASE_URL` empty) → `npm test` | 8/8 pass, no DB needed | DEV4/DEV2 |
+| B | Backend up | `npm start` → `GET /health` | `200 {"ok":true}`; log shows `postgres: false` (in-memory) | DEV2 |
+| C | DB migrate+seed | `psql $DATABASE_URL -f ../database/schema.sql -f ../database/seed.sql` → count | 3 locations, 5 assets incl. `MARK-001`, 6 maintenance rows, 3 issues | DEV2 |
+| D | Frontend serve | `cd frontend/ar && python3 -m http.server 8000` (or `npx serve`); same for `frontend/dashboard` on another port; open pages | Both pages load with no console errors; backend banner shows connected origin | DEV1/DEV3 |
+| E | AR scanner (no camera) | Open AR page `/?marker=MARK-001`, or pick `MARK-001` + **Simulate scan** | Passport bottom-sheet shows Epson projector (`AST-001`, Operational badge) | DEV1 |
+| F | Marker→asset | `resolveMarker('MARK-001')` → `GET /api/assets/marker/MARK-001` → `GET /api/assets/AST-001` | `{assetId:"AST-001"}` then full asset with `markerId:"MARK-001"` | DEV1+DEV2 |
+| G | Asset passport | Passport shows name, id, marker, category, location, dates, description; **View Details** toggles; broken `imageUrl` shows placeholder, never blank | Matches `docs/API.md` asset shape | DEV1 |
+| H | Maintenance | **Maintenance History** → `GET /api/assets/AST-001/maintenance` | ≥2 records (MNT-001/002); assets without records show explicit empty state | DEV2+DEV1 |
+| I | Issue create → dashboard visible → status update | AR **Report Issue** (`POST /api/issues {assetId,title}`) → `201` → open dashboard Issues tab (or `GET /api/issues?assetId=...`) → change status to `in_progress` (`PATCH /:id/status`) → refresh | New issue visible in dashboard; status persists after refresh | ALL |
+| J | Error handling (backend down) | Stop backend, reload both pages / retry scan | AR: backend-unavailable toast + backend-status banner; dashboard: offline banner + sample data, writes disabled, no crash | DEV4+DEV1/3 |
+| K | Invalid marker | `GET /api/assets/marker/MARK-999` or scan/type unknown marker | `404 MARKER_NOT_FOUND`; AR shows "not linked" warning, stays on page | DEV1+DEV2 |
+| L | Nonexistent asset | `GET /api/assets/NOPE-999` | `404 ASSET_NOT_FOUND` envelope | DEV2 |
+| M | Malformed issue | `POST /api/issues` with `{}` / short title / bad `assetId` | `400 VALIDATION_ERROR` (or `404 ASSET_NOT_FOUND`); AR form shows inline message, no exception | DEV2+DEV1 |
+| N | Camera denied / mobile / DB down / empty DB / prod | Deny camera → manual mode; phone over HTTPS → camera flow (manual, NOT run in CI — record device/OS when done); kill Postgres → `500 INTERNAL_ERROR` → offline UI; seed zero rows → dashboard empty-state; deployed HTTPS frontend + HTTPS backend → no mixed-content block | Camera denied: helpful message + manual bar; mobile: untested in CI (mark NOT RUN until a real phone test); DB down: offline UI; prod: `?marker=` flow works end-to-end on hosted URLs | DEV4+DEV2 |
+
+## Failure-case matrix (expected behavior, all verified except phone)
+
+| Case | Probe | Expect |
+|------|-------|--------|
+| Backend down | Stop `node server.js`, reload pages | AR toast `Backend unavailable`, banner `Backend unreachable`; dashboard offline banner + sample data; writes disabled |
+| Invalid marker | `GET /api/assets/marker/MARK-999` | `404 {"error":{"code":"MARKER_NOT_FOUND",...}}` |
+| Nonexistent asset | `GET /api/assets/NOPE-999` | `404 {"error":{"code":"ASSET_NOT_FOUND",...}}` |
+| Malformed issue | `POST /api/issues {}` / `{assetId,title:"x"}` / `{assetId:"AST-999",title:"Valid"}` | `400 VALIDATION_ERROR` / `400` / `404 ASSET_NOT_FOUND` |
+| Bad issue status | `PATCH /api/issues/ISS-001/status {"status":"bogus"}` | `400 VALIDATION_ERROR` |
+| Unknown issue | `PATCH /api/issues/ISS-999/status` | `404 ISSUE_NOT_FOUND` |
+| DB down (Postgres mode) | Kill Postgres / bad `DATABASE_URL` | Requests fail `500 INTERNAL_ERROR`; frontends show offline UI (restart reseeds in-memory mode) |
+| Empty DB | Fresh Postgres, schema only, no seed | Dashboard empty-state ("no assets"); AR scan → `MARKER_NOT_FOUND` until `seed.sql` is run |
+| Camera denied | Deny permission on Start | Blocking explainer + manual simulation bar stays usable |
+| Insecure context | Plain-HTTP URL on a phone (not localhost) | `getUserMedia` blocked → manual mode; fix = serve frontend over HTTPS (Vercel/Netlify default) |
 
 ## Sign-off
 
-Pre-demo gate: validator `-Strict` green (currently 2 warnings: `Boot.unity`
-+ `Dashboard.unity` missing) + `npm test` green + A–I green on
-target device + J–N spot-checked. Record device model, OS, APK version,
-backend URL with each run. Known gaps at handoff: **`Boot`/`Dashboard`
-scenes missing (DEV3)** — C/E UI steps are contracts awaiting those files;
-**deep-link `PendingMarker` not yet consumed by DEV1** (`AppBootstrapper`
-side ready); DEV3 reflection bridge should disambiguate the two
-`ApiClient.GetIssues` overloads at runtime.
+Pre-demo gate: `npm test` 8/8 green + `node --check` on all four frontend
+JS files green + A–I green against the target backend + J–M spot-checked.
+Record backend URL, commit hash, and (for phone runs) device model, OS, and
+browser version with each run. Known gaps at handoff: **`targets.mind`
+missing** (compile per `frontend/ar/targets/README.md`; camera tracking only,
+manual mode unaffected); seed `imageUrl`s are `example.com` placeholders
+(placeholder art shows instead); in-memory mode is ephemeral (restart reseeds);
+**no auth** on API routes (`admins` table reserved); phone camera flow is
+**NOT RUN** in CI — do not claim it passes until tested on a real device.

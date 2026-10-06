@@ -170,3 +170,88 @@ Every request is bounded by `ApiConfig.GetTimeoutSeconds()` (default 10 s);
    case-insensitive) — see `ARUiKit.StatusColor`. New statuses need mapping there.
 6. **Compiles against AR Foundation 5.x.** The scene degrades gracefully at
    *runtime* without AR hardware, but building requires the ARF/ARCore packages.
+
+---
+
+## 9. WebAR (A-Frame + MindAR) — `frontend/ar/`
+
+Browser-based companion to the Unity scanner above. Unity code, backend API,
+and seed data are untouched — this is a static frontend that consumes the same
+frozen contract (`docs/API.md`). No auth, no secrets.
+
+### 9.1 How it works
+
+```
+Printed marker (MARK-001, 15 cm)
+  → MindAR image tracking (CDN: A-Frame 1.4.2 + mind-ar 1.2.5)
+    → targetFound (targetIndex 0..4 → MARK-001..005 via TARGET_INDEX_TO_MARKER)
+      → resolveMarker()  GET /api/assets/marker/:markerId → {assetId}
+        → fetchAsset()   GET /api/assets/:id → passport bottom-sheet
+          → fetchMaintenance()  GET /api/assets/:id/maintenance (on demand)
+          → reportIssue()      POST /api/issues {assetId,title,description,reportedBy} (on demand)
+```
+
+Files:
+
+| File | Purpose |
+|------|---------|
+| `frontend/ar/index.html` | A-Frame + MindAR scene, start overlay (camera explainer), scan hint, passport bottom-sheet, maintenance/report modals, manual test bar |
+| `frontend/ar/config.js` | `API_BASE_URL` = `window.__API_BASE_URL` → `localStorage AR_API_BASE_URL` → `http://localhost:3000` fallback; `api()`/`apiUrl()` helpers. `?api=` query param persists an override. No prod URL is hardcoded |
+| `frontend/ar/app.js` | `resolveMarker`, `fetchAsset`, `fetchMaintenance`, `reportIssue` (+ `ARPassport` namespace); error handling for camera denied / unknown marker / backend down / invalid asset / timeout / missing image-model; `?marker=MARK-001` deep link |
+| `frontend/ar/styles.css` | Mobile-first, bottom-sheet passport, status badges (operational green / under_maintenance amber / faulty red / retired grey), overlays, 44 px accessible tap targets |
+| `frontend/ar/targets/` | `README.md` (mapping + compiler instructions), `src/MARK-00{1,2,3}.png` copies, `targets.mind.MISSING.txt` placeholder note |
+
+### 9.2 Marker setup
+
+`targets.mind` is a build artifact and is **not** in git — compile it per
+`frontend/ar/targets/README.md` (input order MARK-001…MARK-005 =
+`targetIndex` 0…4). `MARK-004`/`MARK-005` source PNGs still need to be authored
+(same 1024² high-contrast rules as `Assets/Markers/README.md`). Without the
+`.mind` file, camera tracking is unavailable but manual simulation keeps working.
+
+### 9.3 API dependencies (same frozen contract as Unity §4)
+
+Only these endpoints are consumed: `GET /api/assets/marker/:markerId`,
+`GET /api/assets/:id`, `GET /api/assets/:id/maintenance`,
+`POST /api/issues`, `GET /health` (banner). Error envelope
+`{error:{code,message}}` is parsed (`MARKER_NOT_FOUND` → "not linked" warning;
+network/timeout → backend-unavailable message). 10 s per-request timeout via
+`AbortController`.
+
+### 9.4 Local testing
+
+```bash
+# terminal 1 — backend (from repo root)
+node Backend/server.js        # http://localhost:3000
+
+# terminal 2 — static host for the WebAR app (camera needs localhost or HTTPS)
+cd frontend/ar && python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000/?marker=MARK-001` (no camera needed), or use
+the on-page marker dropdown + **Simulate scan**. For the camera flow on a phone,
+serve over HTTPS or use a LAN URL and set the API base in the start-overlay
+`API base URL` field (persisted to `localStorage`).
+
+### 9.5 Production deployment (HTTPS required)
+
+Mobile browsers gate `getUserMedia` behind a **secure context**: deploy
+`frontend/ar/` as a static site (Vercel / Netlify / any static host serves
+HTTPS by default) and point it at the deployed backend via **one** of, in
+priority order: `window.__API_BASE_URL` (inject before `config.js` in a
+hosting snippet), `localStorage AR_API_BASE_URL`, or `?api=https://…` once
+(which persists). The `http://localhost:3000` fallback only ever applies when
+no override is set — no prod URL is baked into the code.
+
+### 9.6 Browser limitations
+
+1. **HTTPS + camera-capable browser required** for live tracking; denial or
+   insecure context falls back to manual simulation (never a dead page).
+2. **No runtime 3D model viewer** (same as Unity §8): `modelUrl` renders as a
+   link/placeholder note.
+3. **Remote `imageUrl`s** use `onerror` placeholder fallback; seed data uses
+   `example.com` URLs that will not resolve — placeholder shows instead.
+4. **`.mind` missing** (fresh clone) disables camera tracking only; all panels
+   and manual mode still work.
+5. Desktop browsers have no rear camera / motion sensors — test camera flow on
+   a real phone; use `?marker=` on desktop.

@@ -1,0 +1,513 @@
+/* AR Passport WebAR styles — frontend/ar/styles.css (mobile-first) */
+
+:root {
+  --bg: #0f172a;
+  --card: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --accent: #2563eb;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
+  --grey: #6b7280;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+/* A-Frame scene fills the viewport behind the UI overlays */
+#a-scene,
+a-scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+code {
+  background: #f1f5f9;
+  padding: 0 0.3em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+/* ---------- banners / toast ---------- */
+
+#backend-status,
+#status-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+#backend-status {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+#backend-status[data-kind="error"] {
+  background: #7f1d1d;
+  color: #fff;
+}
+
+#backend-status[data-kind="ok"] {
+  background: #14532d;
+  color: #fff;
+}
+
+#status-banner {
+  top: 2.2rem;
+}
+
+#status-banner[data-kind="info"] {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+#status-banner[data-kind="warn"] {
+  background: #92400e;
+  color: #fff;
+}
+
+#status-banner[data-kind="error"] {
+  background: #991b1b;
+  color: #fff;
+}
+
+/* ---------- start overlay ---------- */
+
+#start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.72);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  width: 100%;
+  max-width: 26rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.card h1 {
+  font-size: 1.3rem;
+  margin: 0 0 0.5rem;
+}
+
+.card h2 {
+  font-size: 1.05rem;
+  margin: 1rem 0 0.4rem;
+}
+
+.target-list {
+  margin: 0.3rem 0 0.8rem;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.api-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0.6rem 0;
+  font-size: 0.85rem;
+}
+
+.api-row input {
+  flex: 1 1 12rem;
+}
+
+/* ---------- buttons / inputs (accessible tap targets) ---------- */
+
+button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: var(--ink);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.secondary {
+  background: transparent;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+  font-size: 1rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: var(--ink);
+  max-width: 100%;
+}
+
+label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: block;
+  margin: 0.6rem 0 0.25rem;
+}
+
+.btn-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+/* ---------- passport bottom-sheet ---------- */
+
+#passport {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 0.4rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  max-height: 72vh;
+  overflow-y: auto;
+  box-shadow: 0 -6px 30px rgba(0, 0, 0, 0.45);
+}
+
+.sheet-handle {
+  width: 3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: #cbd5e1;
+  margin: 0.4rem auto 0.6rem;
+}
+
+.passport-head {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+#passport-img {
+  width: 5.5rem;
+  height: 5.5rem;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.img-fallback {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 10px;
+  background: #e2e8f0;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.passport-titles h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.passport-titles .muted {
+  margin: 0.15rem 0 0.4rem;
+}
+
+/* status badges: operational green, under_maintenance amber, faulty red, retired grey */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--grey);
+}
+
+.badge.status-operational {
+  background: var(--ok);
+}
+
+.badge.status-under_maintenance {
+  background: var(--warn);
+}
+
+.badge.status-faulty {
+  background: var(--bad);
+}
+
+.badge.status-retired {
+  background: var(--grey);
+}
+
+#passport-meta {
+  margin: 0.7rem 0 0.2rem;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.meta-row dt {
+  color: var(--muted);
+}
+
+.meta-row dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+
+#passport-desc {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.6rem;
+  font-size: 0.92rem;
+}
+
+/* ---------- modals ---------- */
+
+#maintenance-modal,
+#report-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.6);
+  padding: 1rem;
+}
+
+#maintenance-list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.maint-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.maint-row p {
+  margin: 0.3rem 0 0;
+}
+
+.maint-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-left: 0.5rem;
+}
+
+.error-text {
+  color: var(--bad);
+}
+
+/* ---------- manual test bar ---------- */
+
+#manual-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  padding: 0.5rem 0.7rem calc(0.5rem + env(safe-area-inset-bottom));
+  font-size: 0.85rem;
+}
+
+#manual-bar label {
+  margin: 0;
+  color: #e2e8f0;
+}
+
+#manual-bar input {
+  flex: 1 1 8rem;
+}
+
+/* When the passport sheet is open it sits above the manual bar */
+#passport:not([hidden]) ~ #manual-bar {
+  bottom: auto;
+  top: 2.2rem;
+}
+
+/* ---------- scan hint / errors / loader ---------- */
+
+#scan-hint {
+  position: fixed;
+  top: 4.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  max-width: 94vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#camera-error {
+  position: fixed;
+  top: 4.4rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 25;
+  background: #7f1d1d;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+#loader {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.55);
+  color: #fff;
+}
+
+.spinner {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.noscript {
+  color: #fff;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* ---------- larger screens ---------- */
+
+@media (min-width: 640px) {
+  #start-overlay,
+  #maintenance-modal,
+  #report-modal {
+    align-items: center;
+  }
+
+  #passport {
+    left: auto;
+    right: 1rem;
+    bottom: 1rem;
+    width: 24rem;
+    border-radius: 18px;
+    max-height: 85vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

@@ -234,7 +234,7 @@ namespace ArPassport.Dashboard
             if (root == null) return;
             try
             {
-                LayoutRebuilder.ForceRebuildLayoutInformation(root as RectTransform);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(root as RectTransform);
             }
             catch
             {

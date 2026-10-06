@@ -1,7 +1,9 @@
 # AR Passport API Reference
 
-Base URL: `http://localhost:3000` (override via `AR_API_BASE_URL`; see `Assets/Resources/api_config.json`).
-All responses are JSON. Unity clients use `ApiClient` (`Assets/Scripts/Core/ApiClient.cs`) against these routes.
+Base URL: `http://localhost:3000` for local dev. Web frontends never hardcode
+it — `frontend/ar/config.js` and `frontend/dashboard/config.js` resolve
+`window.__API_BASE_URL` → `localStorage "AR_API_BASE_URL"` → dev default
+(AR page also takes `?api=` once). Unity clients use `ApiClient` (`Assets/Scripts/Core/ApiClient.cs`) against these routes.
 
 Error envelope (all 4xx/5xx):
 ```json

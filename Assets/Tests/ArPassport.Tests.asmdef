@@ -1,0 +1,15 @@
+{
+    "name": "ArPassport.Tests",
+    "references": [
+        "ArPassport",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "autoReferenced": false
+}

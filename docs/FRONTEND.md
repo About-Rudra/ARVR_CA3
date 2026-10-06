@@ -130,8 +130,9 @@ issues are consumed by the dashboard only.
 
 ## 7. Manual test checklist
 
-- [ ] Cold start, no backend → offline banner + 6 sample assets.
-- [ ] Search "bay a" / "AST-00" filters correctly; each dropdown filters; empty
+- [ ] Cold start, no backend → offline banner + 5 sample assets (mirror of
+      `Backend/seedData.js`: AST-001…AST-005, locations CL-6 / FAB-LAB / AR-LAB).
+- [ ] Search "cl-6" / "AST-00" filters correctly; each dropdown filters; empty
       result shows the empty state.
 - [ ] Create valid asset (online) → appears after refresh; invalid ID / missing
       name / bad date shows inline error.
@@ -152,3 +153,74 @@ issues are consumed by the dashboard only.
   phones) rather than wrapping.
 - Issue list is global; per-asset issue filtering for large datasets happens
   client-side after `GET /api/issues`.
+
+---
+
+## 9. Web Dashboard — frontend/dashboard/
+
+A lightweight static companion to the Unity dashboard (§1–§8 above, which
+are unchanged). Vanilla HTML/CSS/JS, no framework, no build step — it
+consumes the same REST contract (`docs/API.md`) directly from the browser.
+
+Files:
+
+- `frontend/dashboard/index.html` — header (title, API URL setting,
+  `../ar/` link), 4 summary cards, search + 3 filters, Assets/Issues tabs,
+  asset table (ID/Name/Category/Location/Status/NextMaint/Actions), paged
+  scroll, loading/empty/error states, footer connection status, detail /
+  form / delete-confirm modals, toast region.
+- `frontend/dashboard/config.js` — API base resolution:
+  `window.__API_BASE_URL` → `localStorage "AR_API_BASE_URL"` →
+  `http://localhost:3000` (dev default only; no prod URL hardcoded).
+- `frontend/dashboard/app.js` — fetch wrappers, card/table/issue rendering,
+  client-side search+filter, detail modal (info + markerId + maintenance +
+  issues), validated create/edit form, delete confirm, issue status changer,
+  offline sample fallback with banner, friendly toasts (no stacks).
+- `frontend/dashboard/styles.css` — responsive (desktop/tablet/mobile),
+  cards/tables/badges/modals, visible focus, semantic landmarks.
+
+### Setup
+
+1. Start the backend: `node Backend/server.js` (default
+   `http://localhost:3000`).
+2. Serve the folder over HTTP (module-free, but `fetch`/CORS behave best
+   off `file://`): e.g. `npx serve frontend/dashboard`.
+3. Open the page; if the backend is down you get the banner + sample data
+   and writes stay disabled until it is back.
+
+### Env
+
+- Inline: `window.__API_BASE_URL = "https://<host>"` before `app.js`.
+- Or use the in-page API URL field (persisted to
+  `localStorage "AR_API_BASE_URL"`).
+- Dev default: `http://localhost:3000`. No production URL is committed.
+
+### API dependency
+
+`GET /api/assets`, `GET /api/assets/:id` (via list cache),
+`POST /api/assets`, `PATCH /api/assets/:id`, `DELETE /api/assets/:id`,
+`GET /api/assets/:id/maintenance`, `GET /api/issues[?assetId=&status=]`,
+`PATCH /api/issues/:id/status`, `GET /api/locations`. Online/offline state is
+derived from whether the initial `GET /api/assets` succeeds. Status mapping mirrors §3: asset
+`operational|under_maintenance|faulty|retired`; issue
+`open|in_progress|resolved|closed`, with the Unity-only `rejected` shown
+as a local badge and saved as `closed`.
+
+### Build (no build) / deploy
+
+- No build, no dependencies: deploy `frontend/dashboard/` as-is.
+- **Vercel:** point a project at the repo, set Root Directory to
+  `frontend/dashboard`, no build command, output = directory root; set the
+  API URL via inline `__API_BASE_URL` or the in-page setting.
+- **Netlify:** drag-and-drop the folder or set Publish directory to
+  `frontend/dashboard`, no build command.
+- Mixed-content note: serve the backend over HTTPS when the dashboard is
+  on HTTPS, otherwise browsers block the API calls.
+
+### Limitations
+
+- Client-side filtering/pagination (page size 10); fine for lab scale.
+- Offline mode is read-only embedded sample data (no queued writes).
+- Asset-ID validation is `AST-` + ≥3 digits; location must already exist
+  (form offers a dropdown); `nextMaintenance >= lastMaintenance`.
+- Category column hides below 480px width to avoid horizontal clipping.

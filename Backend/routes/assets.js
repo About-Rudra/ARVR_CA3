@@ -21,10 +21,12 @@ function validateAssetBody(b, forCreate) {
 }
 
 // IMPORTANT: marker route must be registered BEFORE /:id so "marker" isn't treated as an id.
-router.get('/marker/:markerId', async (req, res) => {
-  const assetId = await db.resolveMarker(req.params.markerId);
-  if (!assetId) return res.status(404).json(err('MARKER_NOT_FOUND', `No asset linked to marker "${req.params.markerId}".`));
-  return res.json({ assetId });
+router.get('/marker/:markerId', async (req, res, next) => {
+  try {
+    const assetId = await db.resolveMarker(req.params.markerId);
+    if (!assetId) return res.status(404).json(err('MARKER_NOT_FOUND', `No asset linked to marker "${req.params.markerId}".`));
+    return res.json({ assetId });
+  } catch (e) { return next(e); }
 });
 
 router.get('/', async (req, res, next) => {
@@ -89,10 +91,12 @@ router.patch('/:id', async (req, res, next) => {
   } catch (e) { return next(e); }
 });
 
-router.delete('/:id', async (req, res) => {
-  const ok = await db.deleteAsset(req.params.id);
-  if (!ok) return res.status(404).json(err('ASSET_NOT_FOUND', `Asset "${req.params.id}" not found.`));
-  return res.status(204).send();
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const ok = await db.deleteAsset(req.params.id);
+    if (!ok) return res.status(404).json(err('ASSET_NOT_FOUND', `Asset "${req.params.id}" not found.`));
+    return res.status(204).send();
+  } catch (e) { return next(e); }
 });
 
 module.exports = router;

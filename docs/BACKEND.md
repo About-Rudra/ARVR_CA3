@@ -43,6 +43,7 @@ Indexes on `assets(location_id, status)`, `maintenance_records(asset_id)`, `issu
 |---|---|---|
 | `PORT` | `3000` | Express listen port |
 | `DATABASE_URL` | _(unset)_ | Postgres/Supabase connection string. Unset → in-memory seed store |
+| `CORS_ORIGIN` | _(unset = allow all)_ | Comma-separated origins allowed to call the API (e.g. `https://app.example.com`). Unset → `cors()` default, open for Unity editor / LAN-device testing; set it to restrict in production |
 
 Unity side: `AR_API_BASE_URL` (env var or `PlayerPrefs`, or `Assets/Resources/api_config.json`).
 Never commit `.env` — only `Backend/.env.example`.
@@ -71,7 +72,7 @@ for on-device testing.
 ## 5. Deploy notes
 
 - Any Node host (Render/Fly/Railway) or Supabase Edge-adjacent VM: set `PORT` + `DATABASE_URL`, run `npm start`.
-- CORS is open (`cors()` default) so LAN devices and the Unity editor can reach the API during development; restrict `origin` in production.
+- CORS is open by default (`cors()` when `CORS_ORIGIN` is unset) so LAN devices and the Unity editor can reach the API during development; set `CORS_ORIGIN` (comma-separated, see `Backend/.env.example`) to restrict `origin` in production.
 - Supabase: create project → copy connection string → run `schema.sql` + `seed.sql` in the SQL editor.
 
 ## 6. Limitations

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AR Passport — Asset Dashboard</title>
+  <meta name="description" content="Lightweight web dashboard for AR Passport assets and issues. Static site, talks to the Express backend." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <h1>AR Passport — Asset Dashboard</h1>
+        <p class="subtitle">Web companion to the Unity dashboard (read-only mirror + CRUD against the same API).</p>
+      </div>
+      <div class="header-actions">
+        <form id="apiUrlForm" class="api-form" aria-label="Backend API URL setting">
+          <label for="apiUrlInput">API base URL</label>
+          <input id="apiUrlInput" name="apiUrl" type="url" inputmode="url"
+                 placeholder="http://localhost:3000" autocomplete="url" spellcheck="false" />
+          <button type="submit" class="btn btn-secondary">Save</button>
+        </form>
+        <nav aria-label="Related views">
+          <a class="btn btn-link" href="../ar/">Open AR view</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <div id="offlineBanner" class="banner banner-warn" role="alert" hidden>
+    Backend unreachable — showing local sample data. Writes are disabled until the API is back.
+    <button id="retryBtn" type="button" class="btn btn-small">Retry connection</button>
+  </div>
+
+  <main id="main" class="container">
+    <section aria-labelledby="summaryHeading">
+      <h2 id="summaryHeading" class="visually-hidden">Summary</h2>
+      <div class="cards">
+        <article class="card"><h3>Total assets</h3><p class="card-value" id="statTotal">—</p></article>
+        <article class="card"><h3>Operational</h3><p class="card-value card-ok" id="statOperational">—</p></article>
+        <article class="card"><h3>Under maintenance</h3><p class="card-value card-warn" id="statMaintenance">—</p></article>
+        <article class="card"><h3>Issues open</h3><p class="card-value card-bad" id="statIssuesOpen">—</p></article>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="Search, filters and actions">
+      <div class="toolbar-row">
+        <div class="field">
+          <label for="searchInput">Search</label>
+          <input id="searchInput" type="search" placeholder="Search id, name, category, location…" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="filterStatus">Status</label>
+          <select id="filterStatus">
+            <option value="">All statuses</option>
+            <option value="operational">Operational</option>
+            <option value="under_maintenance">Under maintenance</option>
+            <option value="faulty">Faulty</option>
+            <option value="retired">Retired</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="filterCategory">Category</label>
+          <select id="filterCategory"><option value="">All categories</option></select>
+        </div>
+        <div class="field">
+          <label for="filterLocation">Location</label>
+          <select id="filterLocation"><option value="">All locations</option></select>
+        </div>
+      </div>
+      <div class="toolbar-row">
+        <button id="refreshBtn" type="button" class="btn btn-secondary">Refresh</button>
+        <button id="addAssetBtn" type="button" class="btn btn-primary">Add asset</button>
+      </div>
+    </section>
+
+    <div class="tabs" role="tablist" aria-label="Dashboard views">
+      <button id="tabAssets" type="button" role="tab" aria-selected="true" aria-controls="panelAssets" class="tab is-active">Assets</button>
+      <button id="tabIssues" type="button" role="tab" aria-selected="false" aria-controls="panelIssues" class="tab">Issues</button>
+    </div>
+
+    <section id="panelAssets" role="tabpanel" aria-labelledby="tabAssets" tabindex="0">
+      <div id="assetsLoading" class="state" role="status">Loading assets…</div>
+      <div id="assetsError" class="state state-error" role="alert" hidden>
+        <span id="assetsErrorText">Could not load assets.</span>
+        <button id="assetsRetryBtn" type="button" class="btn btn-small">Retry</button>
+      </div>
+      <div id="assetsEmpty" class="state" hidden>No assets match the current search / filters.</div>
+      <div class="table-wrap">
+        <table id="assetTable" aria-label="Assets">
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Name</th>
+              <th scope="col">Category</th>
+              <th scope="col">Location</th>
+              <th scope="col">Status</th>
+              <th scope="col">Next maint.</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="assetRows"></tbody>
+        </table>
+      </div>
+      <div class="pagination" aria-label="Asset pages">
+        <button id="prevPageBtn" type="button" class="btn btn-small">‹ Prev</button>
+        <span id="pageInfo" role="status">Page 1</span>
+        <button id="nextPageBtn" type="button" class="btn btn-small">Next ›</button>
+      </div>
+    </section>
+
+    <section id="panelIssues" role="tabpanel" aria-labelledby="tabIssues" tabindex="0" hidden>
+      <div class="toolbar-row">
+        <div class="field">
+          <label for="issueStatusFilter">Issue status</label>
+          <select id="issueStatusFilter">
+            <option value="">All statuses</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <p class="hint">Note: the Unity client’s “Rejected” maps to the backend <code>closed</code> status.</p>
+      </div>
+      <div id="issuesLoading" class="state" role="status">Loading issues…</div>
+      <div id="issuesError" class="state state-error" role="alert" hidden>
+        <span id="issuesErrorText">Could not load issues.</span>
+        <button id="issuesRetryBtn" type="button" class="btn btn-small">Retry</button>
+      </div>
+      <div id="issuesEmpty" class="state" hidden>No issues match the current filter.</div>
+      <ul id="issueList" class="issue-list"></ul>
+    </section>
+  </main>
+
+  <!-- Asset detail modal -->
+  <div id="assetDetailModal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <div class="modal-head">
+        <h2 id="detailTitle">Asset</h2>
+        <button type="button" class="btn btn-icon modal-close" data-close="assetDetailModal" aria-label="Close details">✕</button>
+      </div>
+      <div id="detailBody" class="modal-body"></div>
+      <div class="modal-foot">
+        <button id="detailEditBtn" type="button" class="btn btn-secondary">Edit</button>
+        <button id="detailDeleteBtn" type="button" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset create/edit modal -->
+  <div id="assetFormModal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+      <div class="modal-head">
+        <h2 id="formTitle">Add asset</h2>
+        <button type="button" class="btn btn-icon modal-close" data-close="assetFormModal" aria-label="Close form">✕</button>
+      </div>
+      <form id="assetForm" class="modal-body" novalidate>
+        <p id="formErrors" class="form-errors" role="alert" hidden></p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="fId">Asset ID (AST-xxx)</label>
+            <input id="fId" name="id" required pattern="AST-[0-9]{3,}" placeholder="AST-007" />
+          </div>
+          <div class="field">
+            <label for="fName">Name</label>
+            <input id="fName" name="name" required maxlength="120" placeholder="Hydraulic Press" />
+          </div>
+          <div class="field">
+            <label for="fCategory">Category</label>
+            <input id="fCategory" name="category" required maxlength="80" list="categorySuggestions" placeholder="Machinery" />
+            <datalist id="categorySuggestions"></datalist>
+          </div>
+          <div class="field">
+            <label for="fLocation">Location</label>
+            <select id="fLocation" name="location" required></select>
+          </div>
+          <div class="field">
+            <label for="fStatus">Status</label>
+            <select id="fStatus" name="status" required>
+              <option value="operational">Operational</option>
+              <option value="under_maintenance">Under maintenance</option>
+              <option value="faulty">Faulty</option>
+              <option value="retired">Retired</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fMarkerId">Marker ID</label>
+            <input id="fMarkerId" name="markerId" maxlength="40" placeholder="MARK-007" />
+          </div>
+          <div class="field">
+            <label for="fLast">Last maintenance</label>
+            <input id="fLast" name="lastMaintenance" type="date" />
+          </div>
+          <div class="field">
+            <label for="fNext">Next maintenance</label>
+            <input id="fNext" name="nextMaintenance" type="date" />
+          </div>
+          <div class="field field-full">
+            <label for="fDesc">Description</label>
+            <textarea id="fDesc" name="description" rows="3" maxlength="2000"></textarea>
+          </div>
+          <div class="field">
+            <label for="fImage">Image URL</label>
+            <input id="fImage" name="imageUrl" type="url" maxlength="500" placeholder="https://…" />
+          </div>
+          <div class="field">
+            <label for="fModel">Model URL</label>
+            <input id="fModel" name="modelUrl" type="url" maxlength="500" placeholder="https://…" />
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-secondary" data-close="assetFormModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save asset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete confirm -->
+  <div id="deleteConfirmModal" class="modal-backdrop" hidden>
+    <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+      <div class="modal-head">
+        <h2 id="deleteTitle">Delete asset?</h2>
+        <button type="button" class="btn btn-icon modal-close" data-close="deleteConfirmModal" aria-label="Cancel delete">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteConfirmText">This cannot be undone.</p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-secondary" data-close="deleteConfirmModal">Cancel</button>
+        <button id="deleteConfirmBtn" type="button" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <footer class="site-footer">
+    <span id="connStatus" class="conn" role="status">Checking connection…</span>
+    <span class="footer-note">Static dashboard · same REST contract as Unity (<code>docs/API.md</code>).</span>
+  </footer>
+
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

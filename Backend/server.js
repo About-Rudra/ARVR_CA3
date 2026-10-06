@@ -13,7 +13,10 @@ const issuesRouter = require('./routes/issues');
 const locationsRouter = require('./routes/locations');
 
 const app = express();
-app.use(cors()); // UnityWebRequest / editor tooling: allow all origins (LAN device testing)
+// CORS: open by default for Unity editor / LAN-device testing.
+// Set CORS_ORIGIN (comma-separated, see .env.example) to restrict in production.
+const corsOrigin = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+app.use(corsOrigin.length ? cors({ origin: corsOrigin }) : cors());
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
