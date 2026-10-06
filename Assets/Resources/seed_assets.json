@@ -1,0 +1,169 @@
+{
+  "locations": [
+    { "id": "Bay A", "name": "Bay A", "floor": 0, "building": "Main Plant" },
+    { "id": "Bay B", "name": "Bay B", "floor": 0, "building": "Main Plant" },
+    { "id": "Warehouse", "name": "Warehouse", "floor": 0, "building": "Logistics" },
+    { "id": "Plant Room", "name": "Plant Room", "floor": 0, "building": "Utilities Block" },
+    { "id": "Yard", "name": "Yard", "floor": 0, "building": "Outdoor" }
+  ],
+  "assets": [
+    {
+      "id": "AST-001",
+      "name": "Hydraulic Press",
+      "category": "Machinery",
+      "location": "Bay A",
+      "status": "operational",
+      "description": "50-ton hydraulic press for sheet metal forming.",
+      "imageUrl": "",
+      "modelUrl": "",
+      "lastMaintenance": "2026-06-10",
+      "nextMaintenance": "2026-12-10",
+      "markerId": "MARK-001"
+    },
+    {
+      "id": "AST-002",
+      "name": "Conveyor Belt Line 2",
+      "category": "Machinery",
+      "location": "Bay B",
+      "status": "under_maintenance",
+      "description": "Main packaging conveyor; belt replaced in June.",
+      "imageUrl": "",
+      "modelUrl": "",
+      "lastMaintenance": "2026-08-01",
+      "nextMaintenance": "2026-11-01",
+      "markerId": "MARK-002"
+    },
+    {
+      "id": "AST-003",
+      "name": "Forklift FL-12",
+      "category": "Vehicles",
+      "location": "Warehouse",
+      "status": "operational",
+      "description": "Electric forklift, 2.5t capacity.",
+      "imageUrl": "",
+      "modelUrl": "",
+      "lastMaintenance": "2026-07-20",
+      "nextMaintenance": "2027-01-20",
+      "markerId": "MARK-003"
+    },
+    {
+      "id": "AST-004",
+      "name": "Air Compressor",
+      "category": "Utilities",
+      "location": "Plant Room",
+      "status": "under_maintenance",
+      "description": "Screw compressor feeding pneumatic lines.",
+      "imageUrl": "",
+      "modelUrl": "",
+      "lastMaintenance": "2026-05-30",
+      "nextMaintenance": "2026-11-30",
+      "markerId": "MARK-004"
+    },
+    {
+      "id": "AST-005",
+      "name": "CNC Mill",
+      "category": "Machinery",
+      "location": "Bay A",
+      "status": "retired",
+      "description": "3-axis mill; spindle fault, retired pending replacement.",
+      "imageUrl": "",
+      "modelUrl": "",
+      "lastMaintenance": "2026-04-12",
+      "nextMaintenance": "2026-10-12",
+      "markerId": "MARK-005"
+    },
+    {
+      "id": "AST-006",
+      "name": "Backup Generator",
+      "category": "Utilities",
+      "location": "Yard",
+      "status": "operational",
+      "description": "125 kVA diesel standby generator.",
+      "imageUrl": "",
+      "modelUrl": "",
+      "lastMaintenance": "2026-09-01",
+      "nextMaintenance": "2027-03-01",
+      "markerId": "MARK-006"
+    }
+  ],
+  "maintenanceRecords": [
+    {
+      "id": "MNT-01",
+      "assetId": "AST-001",
+      "date": "2026-06-10",
+      "type": "preventive",
+      "technician": "R. Iyer",
+      "notes": "Hydraulic oil topped up, seals inspected."
+    },
+    {
+      "id": "MNT-02",
+      "assetId": "AST-002",
+      "date": "2026-08-01",
+      "type": "corrective",
+      "technician": "S. Rao",
+      "notes": "New belt fitted; tension calibrated."
+    },
+    {
+      "id": "MNT-03",
+      "assetId": "AST-004",
+      "date": "2026-05-30",
+      "type": "preventive",
+      "technician": "K. Menon",
+      "notes": "Air/oil filters replaced."
+    },
+    {
+      "id": "MNT-04",
+      "assetId": "AST-005",
+      "date": "2026-04-12",
+      "type": "inspection",
+      "technician": "R. Iyer",
+      "notes": "Spindle runout out of tolerance; parts ordered."
+    },
+    {
+      "id": "MNT-05",
+      "assetId": "AST-003",
+      "date": "2026-07-20",
+      "type": "preventive",
+      "technician": "S. Rao",
+      "notes": "Cells equalized, terminals cleaned."
+    }
+  ],
+  "issues": [
+    {
+      "id": "ISS-101",
+      "assetId": "AST-002",
+      "title": "Belt slipping under load",
+      "description": "Operators report intermittent slipping when the line runs above 80% speed.",
+      "status": "open",
+      "severity": "high",
+      "reportedAt": "2026-09-18"
+    },
+    {
+      "id": "ISS-102",
+      "assetId": "AST-005",
+      "title": "Spindle vibration fault",
+      "description": "Vibration sensor trips after 20 minutes of milling. Suspect bearing wear.",
+      "status": "in_progress",
+      "severity": "critical",
+      "reportedAt": "2026-09-02"
+    },
+    {
+      "id": "ISS-103",
+      "assetId": "AST-004",
+      "title": "Oil leak at drain valve",
+      "description": "Minor leak observed during weekly walkdown.",
+      "status": "resolved",
+      "severity": "low",
+      "reportedAt": "2026-08-11"
+    },
+    {
+      "id": "ISS-104",
+      "assetId": "AST-001",
+      "title": "Pressure gauge flicker",
+      "description": "Gauge needle flickers; likely a gauge fault, press itself is fine.",
+      "status": "rejected",
+      "severity": "low",
+      "reportedAt": "2026-07-25"
+    }
+  ]
+}

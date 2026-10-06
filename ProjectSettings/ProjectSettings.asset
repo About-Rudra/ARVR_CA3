@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 22
+  productGUID: {00000000-0000-0000-0000-000000000000}
+  AndroidBundleVersionCode: 1
+  AndroidMinSdkVersion: 26
+  AndroidTargetSdkVersion: 33
+  applicationIdentifier:
+    Android: com.team.arpassport
+    Standalone: com.team.arpassport
+  bundleVersion: 0.1.0
+  companyName: ARPassportTeam
+  productName: AR Passport
+  defaultIsFullScreen: 1
+  runInBackground: 1
+--- !u!159 &2
+EditorSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 3

@@ -1,0 +1,22 @@
+name: validate-integration
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: DEV4 integration check (no Unity required)
+        shell: pwsh
+        run: ./tests/validate_integration.ps1
+      - name: JSON sanity (manifest + seed if present)
+        run: |
+          python3 -c "import json; json.load(open('Packages/manifest.json')); print('manifest.json: valid')"
+          if [ -f database/seed_assets.json ]; then python3 -c "import json; d=json.load(open('database/seed_assets.json')); print('seed_assets.json: valid')"; fi
+      - name: Backend lint/test (if DEV2 landed)
+        working-directory: Backend
+        run: |
+          if [ -f package.json ]; then npm ci --no-audit --no-fund; npm test --if-present; else echo "Backend/ not landed yet (DEV2) — skipped"; fi
