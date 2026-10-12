@@ -1,0 +1,19 @@
+# Render Blueprint for the REST API (Render dashboard -> New -> Blueprint -> this repo).
+# Secrets are NOT stored here: Render prompts for every `sync: false` value.
+services:
+  - type: web
+    name: ar-passport-api
+    runtime: node
+    plan: free
+    rootDir: Backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL       # Supabase/Neon connection string (needs SSL; db.js enables it)
+        sync: false
+      - key: CORS_ORIGIN        # e.g. https://<ar-site>.netlify.app,https://<dashboard-site>.netlify.app
+        sync: false

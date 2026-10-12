@@ -1,0 +1,12 @@
+{
+  "name": "ar-passport-browser-tests",
+  "private": true,
+  "description": "Headless-browser QA for the WebAR scanner + dashboard (uses a locally installed Chrome/Edge).",
+  "scripts": {
+    "ui": "node ui_flow.js",
+    "tracking": "node marker_tracking.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}

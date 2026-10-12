@@ -23,3 +23,49 @@ jobs:
         working-directory: Backend
         run: |
           if [ -f package.json ]; then npm ci --no-audit --no-fund; npm test --if-present; else echo "Backend/ not landed yet (DEV2) — skipped"; fi
+
+  e2e:
+    # DEV4 primary acceptance test: target user flow over HTTP against a real Postgres
+    # built from database/schema.sql + seed.sql (and again on the in-memory store).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arpassport
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/arpassport
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install backend
+        working-directory: Backend
+        run: npm ci --no-audit --no-fund
+      - name: Init database (schema + seed, seed twice = idempotent)
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f database/schema.sql -f database/seed.sql -f database/seed.sql
+          psql "$DATABASE_URL" -t -c "select count(*) from assets" | grep -q 5
+      - name: E2E against Postgres
+        run: |
+          (cd Backend && PORT=3000 node server.js > ../pg-server.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf localhost:3000/health && break; sleep 1; done
+          curl -s localhost:3000/health | grep -q '"db":"up"'
+          node tests/e2e_flow.js http://localhost:3000
+      - name: E2E against in-memory store
+        run: |
+          (cd Backend && DATABASE_URL= PORT=3001 node server.js > ../mem-server.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf localhost:3001/health && break; sleep 1; done
+          node tests/e2e_flow.js http://localhost:3001
+      - name: Frontend env.js generation
+        run: |
+          API_BASE_URL=https://example-backend.onrender.com node scripts/write-frontend-env.js frontend/ar
+          grep -q 'example-backend.onrender.com' frontend/ar/env.js
+      - name: Server logs on failure
+        if: failure()
+        run: cat pg-server.log mem-server.log || true

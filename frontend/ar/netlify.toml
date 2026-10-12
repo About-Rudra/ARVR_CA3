@@ -1,0 +1,27 @@
+# Netlify site for the WebAR scanner. In Netlify: Base directory = frontend/ar
+# (this file is then picked up). Set env var API_BASE_URL = backend origin,
+# e.g. https://ar-passport-api.onrender.com (no /api suffix).
+[build]
+  publish = "."
+  command = "node ../../scripts/write-frontend-env.js ."
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Permissions-Policy = "camera=(self)"
+    X-Content-Type-Options = "nosniff"
+
+# Never serve a stale API URL after redeploying with a new backend.
+[[headers]]
+  for = "/env.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/targets/targets.mind"
+  [headers.values]
+    Content-Type = "application/octet-stream"
+    Cache-Control = "public, max-age=3600"
