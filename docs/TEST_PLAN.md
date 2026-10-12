@@ -59,8 +59,8 @@ Invoke-RestMethod "http://localhost:3000/api/issues?assetId=AST-001"   # new iss
   `frontend/ar` marker list): 5 assets `AST-001..005` ↔ `MARK-001..005`,
   3 locations (`CL-6`, `FAB-LAB`, `AR-LAB`), 6 maintenance rows, 3 issues.
 - `MARK-001` = Epson EB-X49 projector (`AST-001`, location `CL-6`) — the demo marker.
-- `targets.mind` is a build artifact, NOT in git — without it only live camera
-  tracking is unavailable; manual simulation + `?marker=` always work.
+- `targets.mind` (5 targets, MARK-001..005) is checked in; manual simulation +
+  `?marker=` work with or without it.
 
 ## Checklists A–N (web flow)
 
@@ -101,9 +101,7 @@ Invoke-RestMethod "http://localhost:3000/api/issues?assetId=AST-001"   # new iss
 Pre-demo gate: `npm test` 8/8 green + `node --check` on all four frontend
 JS files green + A–I green against the target backend + J–M spot-checked.
 Record backend URL, commit hash, and (for phone runs) device model, OS, and
-browser version with each run. Known gaps at handoff: **`targets.mind`
-missing** (compile per `frontend/ar/targets/README.md`; camera tracking only,
-manual mode unaffected); seed `imageUrl`s are `example.com` placeholders
+browser version with each run. Known gaps at handoff: seed `imageUrl`s are `example.com` placeholders
 (placeholder art shows instead); in-memory mode is ephemeral (restart reseeds);
 **no auth** on API routes (`admins` table reserved); phone camera flow is
 **NOT RUN** in CI — do not claim it passes until tested on a real device.

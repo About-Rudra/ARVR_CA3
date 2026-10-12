@@ -74,10 +74,9 @@ projector passport → maintenance (MNT-001/002) → report an issue → open
 refresh → persists. Mixed-content note: if the dashboard/AR site is HTTPS,
 the backend MUST be HTTPS too.
 
-AR camera note: `frontend/ar/targets/targets.mind` is a build artifact, NOT in
-git — compile it per `frontend/ar/targets/README.md` (input order
-MARK-001…MARK-005 = `targetIndex` 0…4) and deploy it alongside the AR site, or
-only manual simulation (`?marker=`) will work. Camera needs HTTPS + a
+AR camera note: `frontend/ar/targets/targets.mind` (5 targets) is checked in
+and deploys with the AR site as a plain static file. Recompile only if marker
+images change (`tools/mindar-compiler`, see `frontend/ar/targets/README.md`). Camera needs HTTPS + a
 camera-capable mobile browser; denial falls back to manual mode (TEST_PLAN N).
 
 ## 4. Unity Android APK (alternative native path, legacy `Assets/`)

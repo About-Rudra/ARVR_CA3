@@ -150,7 +150,7 @@ Every request is bounded by `ApiConfig.GetTimeoutSeconds()` (default 10 s);
 | `Assets/Scripts/AR/IssueReporterUI.cs` | Issue form overlay (POST /api/issues) |
 | `Assets/Scripts/AR/Editor/ARSceneSetupHelper.cs` | `AR Passport` menu: scene setup + simulate entries |
 | `Assets/Scenes/ARScanner.unity` | Intentionally empty scene (auto-boot at runtime) |
-| `Assets/Markers/` | `MARK-00{1,2,3}.png`, `generate_markers.py`, `README.md` |
+| `Assets/Markers/` | `MARK-001..005.png`, `generate_markers.py`, `README.md` |
 | `Assets/StreamingAssets/markers/` | APK-bundled copies for the runtime-library fallback |
 
 ## 8. Limitations (known, accepted)
@@ -199,15 +199,16 @@ Files:
 | `frontend/ar/config.js` | `API_BASE_URL` = `window.__API_BASE_URL` → `localStorage AR_API_BASE_URL` → `http://localhost:3000` fallback; `api()`/`apiUrl()` helpers. `?api=` query param persists an override. No prod URL is hardcoded |
 | `frontend/ar/app.js` | `resolveMarker`, `fetchAsset`, `fetchMaintenance`, `reportIssue` (+ `ARPassport` namespace); error handling for camera denied / unknown marker / backend down / invalid asset / timeout / missing image-model; `?marker=MARK-001` deep link |
 | `frontend/ar/styles.css` | Mobile-first, bottom-sheet passport, status badges (operational green / under_maintenance amber / faulty red / retired grey), overlays, 44 px accessible tap targets |
-| `frontend/ar/targets/` | `README.md` (mapping + compiler instructions), `src/MARK-00{1,2,3}.png` copies, `targets.mind.MISSING.txt` placeholder note |
+| `frontend/ar/targets/` | `README.md` (mapping + compiler instructions), `src/MARK-001..005.png` sources, compiled `targets.mind` (5 targets, checked in) |
 
 ### 9.2 Marker setup
 
-`targets.mind` is a build artifact and is **not** in git — compile it per
-`frontend/ar/targets/README.md` (input order MARK-001…MARK-005 =
-`targetIndex` 0…4). `MARK-004`/`MARK-005` source PNGs still need to be authored
-(same 1024² high-contrast rules as `Assets/Markers/README.md`). Without the
-`.mind` file, camera tracking is unavailable but manual simulation keeps working.
+`targets.mind` (5 targets, MARK-001…MARK-005 = `targetIndex` 0…4) is
+compiled and checked in, so static hosts serve it with no build step. To change
+markers: `python Assets/Markers/generate_markers.py` (writes all 5 PNGs into
+`frontend/ar/targets/src/`), then `cd tools/mindar-compiler; npm install;
+npm run compile` and commit the new `targets.mind` (see
+`frontend/ar/targets/README.md`). Manual simulation keeps working without it.
 
 ### 9.3 API dependencies (same frozen contract as Unity §4)
 

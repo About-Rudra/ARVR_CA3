@@ -1,12 +1,18 @@
 # Printable AR Markers
 
-Three placeholder image targets for the AR Digital Passport scanner:
+Five placeholder image targets for the AR Digital Passport scanner:
 
 | File | Marker ID | Motif | Linked seed asset (`database/seed.sql`) |
 |------|-----------|-------|-------------------------------------------|
 | `MARK-001.png` | `MARK-001` | Concentric squares + wedge | AST-001 · Epson EB-X49 Projector (operational) |
 | `MARK-002.png` | `MARK-002` | Triangle + dot row | AST-002 · Creality Ender-3 3D Printer (operational) |
 | `MARK-003.png` | `MARK-003` | Cross + corner blocks | AST-003 · Tektronix Oscilloscope (under_maintenance) |
+| `MARK-004.png` | `MARK-004` | Diagonal stripes + notched ring + L-bracket | AST-004 · Meta Quest 2 VR Headset (operational) |
+| `MARK-005.png` | `MARK-005` | Irregular block grid + half-disc + bar code | AST-005 · Daikin 1.5T Split AC (faulty) |
+
+MARK-004/005 are used by the WebAR scanner (`frontend/ar/targets/targets.mind`).
+The legacy Unity reference image library still lists only MARK-001..003; add
+004/005 there (step 4 of the Unity section) if the APK path needs them.
 
 Copies in `Assets/StreamingAssets/markers/` are identical and are bundled into
 the Android APK (StreamingAssets are packed read-only into the `.apk`).

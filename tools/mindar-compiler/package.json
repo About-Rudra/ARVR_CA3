@@ -1,0 +1,12 @@
+{
+  "name": "ar-passport-mindar-compiler",
+  "private": true,
+  "description": "Compiles frontend/ar/targets/src/MARK-*.png into frontend/ar/targets/targets.mind (MindAR image targets).",
+  "type": "module",
+  "scripts": {
+    "compile": "node compile.mjs"
+  },
+  "dependencies": {
+    "mind-ar": "1.2.5"
+  }
+}
