@@ -116,6 +116,22 @@ describe('issues', () => {
   });
 });
 
+describe('integration additions (DEV4)', () => {
+  test('issue status "rejected" is accepted and persisted', async () => {
+    const res = await request(app).patch('/api/issues/ISS-001/status').send({ status: 'rejected' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('rejected');
+    const list = await request(app).get('/api/issues?status=rejected');
+    expect(list.body.map((i) => i.id)).toContain('ISS-001');
+  });
+
+  test('GET /health reports db mode', async () => {
+    const res = await request(app).get('/health');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, db: 'memory' });
+  });
+});
+
 describe('locations', () => {
   test('GET /api/locations returns 3 seeded locations', async () => {
     const res = await request(app).get('/api/locations');

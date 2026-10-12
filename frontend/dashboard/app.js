@@ -8,7 +8,7 @@
 (function () {
   var PAGE_SIZE = 10;
   var ASSET_STATUSES = ['operational', 'under_maintenance', 'faulty', 'retired'];
-  var ISSUE_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
+  var ISSUE_STATUSES = ['open', 'in_progress', 'resolved', 'rejected', 'closed'];
   var ID_PATTERN = /^AST-[0-9]{3,}$/;
 
   /* Offline sample (used ONLY when the backend is down).
@@ -181,7 +181,7 @@
       case 'in_progress': return 'In progress';
       case 'resolved': return 'Resolved';
       case 'closed': return 'Closed';
-      case 'rejected': return 'Rejected (local only)';
+      case 'rejected': return 'Rejected';
       default: return s || '—';
     }
   }
@@ -522,20 +522,17 @@
 
   function renderIssues() {
     var list = state.issues.filter(function (i) {
-      return !state.issueStatusFilter || i.status === state.issueStatusFilter ||
-        (state.issueStatusFilter === 'closed' && i.status === 'rejected');
+      return !state.issueStatusFilter || i.status === state.issueStatusFilter;
     });
     $('issuesEmpty').hidden = list.length !== 0;
     $('issueList').innerHTML = list.map(function (i) {
       var opts = ISSUE_STATUSES.map(function (s) {
         return '<option value="' + s + '"' + (i.status === s ? ' selected' : '') + '>' + issueStatusLabel(s) + '</option>';
       }).join('');
-      var rejectedNote = i.status === 'rejected'
-        ? '<p>Local sample status “Rejected” — saving any change sends <code>closed</code> to the backend.</p>' : '';
       return '<li class="issue" data-issue="' + esc(i.id) + '">' +
         '<div><h3>' + esc(i.title || i.id) + ' <span class="badge badge-' + esc(i.status) + '">' + esc(issueStatusLabel(i.status)) + '</span></h3>' +
         '<p><code>' + esc(i.id) + '</code> · asset <code>' + esc(i.assetId || '—') + '</code> · reported ' + esc(i.reportedAt || '—') + '</p>' +
-        (i.description ? '<p>' + esc(i.description) + '</p>' : '') + rejectedNote + '</div>' +
+        (i.description ? '<p>' + esc(i.description) + '</p>' : '') + '</div>' +
         '<div class="issue-side"><label class="visually-hidden" for="st-' + esc(i.id) + '">Status for ' + esc(i.id) + '</label>' +
         '<select id="st-' + esc(i.id) + '" data-status-for="' + esc(i.id) + '"' + (state.online ? '' : ' disabled') + '>' + opts + '</select></div>' +
         '</li>';

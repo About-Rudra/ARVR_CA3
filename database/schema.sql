@@ -52,12 +52,18 @@ CREATE TABLE IF NOT EXISTS issues (
   title       TEXT NOT NULL CHECK (char_length(title) >= 3),
   description TEXT NOT NULL DEFAULT '',
   status      TEXT NOT NULL DEFAULT 'open'
-              CHECK (status IN ('open','in_progress','resolved','closed')),
+              CHECK (status IN ('open','in_progress','resolved','rejected','closed')),
   reported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reported_by TEXT NOT NULL DEFAULT 'anonymous',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration (idempotent): databases created before 'rejected' was added keep the
+-- old CHECK because CREATE TABLE IF NOT EXISTS skips them; replace it here.
+ALTER TABLE issues DROP CONSTRAINT IF EXISTS issues_status_check;
+ALTER TABLE issues ADD CONSTRAINT issues_status_check
+  CHECK (status IN ('open','in_progress','resolved','rejected','closed'));
 
 CREATE TABLE IF NOT EXISTS admins (
   id            SERIAL PRIMARY KEY,

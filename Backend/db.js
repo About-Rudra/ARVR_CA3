@@ -12,7 +12,17 @@ const usePostgres = Boolean(process.env.DATABASE_URL);
 let pool = null;
 if (usePostgres) {
   const { Pool } = require('pg');
-  pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  // Hosted Postgres (Supabase/Neon/Render) needs SSL; a local Postgres usually has none.
+  // SSL is skipped for localhost/127.0.0.1, sslmode=disable, or PGSSL=false.
+  const url = process.env.DATABASE_URL;
+  const noSsl = /sslmode=disable/i.test(url) || process.env.PGSSL === 'false' ||
+    /@(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url);
+  // Fail fast (-> 503 DB_UNAVAILABLE) instead of hanging clients when the DB host is unreachable.
+  pool = new Pool({
+    connectionString: url,
+    ssl: noSsl ? false : { rejectUnauthorized: false },
+    connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 10000
+  });
   pool.on('error', (e) => console.error('[db] pool error', e.message));
 }
 
@@ -60,10 +70,38 @@ function mapIssue(r) {
 
 function mapLocation(r) { return { id: r.id, name: r.name, floor: Number(r.floor) || 0, building: r.building || '' }; }
 
+// Runs fn(client) in one transaction. Maps Postgres unique violations (23505) to the
+// same DUPLICATE / DUPLICATE_MARKER codes the in-memory store throws, so routes
+// return 409 instead of 500 and a taken marker is never silently reassigned.
+async function inTransaction(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await fn(client);
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    if (e.code === '23505') {
+      const dup = new Error(e.constraint && e.constraint.startsWith('asset_markers') ? 'duplicate marker' : 'duplicate');
+      dup.code = dup.message === 'duplicate' ? 'DUPLICATE' : 'DUPLICATE_MARKER';
+      throw dup;
+    }
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 const store = {
   isPostgres,
   __reset,
   getPool: () => pool,
+
+  // For GET /health: 'memory' (no DATABASE_URL), 'up', or 'down'.
+  async ping() {
+    if (!isPostgres()) return 'memory';
+    try { await pool.query('SELECT 1'); return 'up'; } catch (e) { return 'down'; }
+  },
 
   async listAssets({ status, location, category } = {}) {
     if (isPostgres()) {
@@ -157,10 +195,12 @@ const store = {
 
   async createAsset(data) {
     if (isPostgres()) {
-      await pool.query(
-        'INSERT INTO assets (id, name, category, location_id, status, description, image_url, model_url, last_maintenance, next_maintenance) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-        [data.id, data.name, data.category, data.location, data.status || 'operational', data.description || '', data.imageUrl || '', data.modelUrl || '', data.lastMaintenance || null, data.nextMaintenance || null]);
-      if (data.markerId) await pool.query('INSERT INTO asset_markers (marker_id, asset_id) VALUES ($1,$2) ON CONFLICT (marker_id) DO UPDATE SET asset_id = EXCLUDED.asset_id', [data.markerId, data.id]);
+      await inTransaction(async (c) => {
+        await c.query(
+          'INSERT INTO assets (id, name, category, location_id, status, description, image_url, model_url, last_maintenance, next_maintenance) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+          [data.id, data.name, data.category, data.location, data.status || 'operational', data.description || '', data.imageUrl || '', data.modelUrl || '', data.lastMaintenance || null, data.nextMaintenance || null]);
+        if (data.markerId) await c.query('INSERT INTO asset_markers (marker_id, asset_id) VALUES ($1,$2)', [data.markerId, data.id]);
+      });
       return this.getAsset(data.id);
     }
     if (mem.assets.some((a) => a.id === data.id)) { const e = new Error('duplicate'); e.code = 'DUPLICATE'; throw e; }
@@ -183,11 +223,13 @@ const store = {
       for (const k of Object.keys(allowed)) {
         if (patch[k] !== undefined) { vals.push(patch[k]); sets.push(`${allowed[k]} = $${vals.length}`); }
       }
-      if (sets.length) { vals.push(id); await pool.query(`UPDATE assets SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals); }
-      if (patch.markerId !== undefined) {
-        await pool.query('DELETE FROM asset_markers WHERE asset_id = $1', [id]);
-        if (patch.markerId) await pool.query('INSERT INTO asset_markers (marker_id, asset_id) VALUES ($1,$2) ON CONFLICT (marker_id) DO UPDATE SET asset_id = EXCLUDED.asset_id', [patch.markerId, id]);
-      }
+      await inTransaction(async (c) => {
+        if (sets.length) { vals.push(id); await c.query(`UPDATE assets SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals); }
+        if (patch.markerId !== undefined) {
+          await c.query('DELETE FROM asset_markers WHERE asset_id = $1', [id]);
+          if (patch.markerId) await c.query('INSERT INTO asset_markers (marker_id, asset_id) VALUES ($1,$2)', [patch.markerId, id]);
+        }
+      });
       return this.getAsset(id);
     }
     const a = mem.assets.find((x) => x.id === id);

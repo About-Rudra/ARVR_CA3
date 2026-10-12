@@ -19,7 +19,10 @@ const corsOrigin = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim(
 app.use(corsOrigin.length ? cors({ origin: corsOrigin }) : cors());
 app.use(express.json({ limit: '1mb' }));
 
-app.get('/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+const db = require('./db');
+
+// Liveness stays 200 (so hosts don't restart-loop on a DB blip); `db` reports 'memory' | 'up' | 'down'.
+app.get('/health', async (req, res) => res.json({ ok: true, time: new Date().toISOString(), db: await db.ping() }));
 
 app.use('/api/assets', assetsRouter);
 app.use('/api/issues', issuesRouter);
@@ -34,8 +37,16 @@ app.use((err, req, res, next) => {
   if (err && err.type === 'entity.parse.failed')
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Malformed JSON body.' } });
   console.error('[api]', err && err.message ? err.message : err);
+  if (isDbConnectionError(err))
+    return res.status(503).json({ error: { code: 'DB_UNAVAILABLE', message: 'Database is unavailable. Please try again shortly.' } });
   return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Unexpected server error.' } });
 });
+
+function isDbConnectionError(err) {
+  if (!err) return false;
+  if (['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN', '57P01', '57P03', '53300', '28P01', '3D000'].includes(err.code)) return true;
+  return /timeout exceeded when trying to connect|Connection terminated|does not support SSL/i.test(err.message || '');
+}
 
 const PORT = Number(process.env.PORT) || 3000;
 if (require.main === module) {

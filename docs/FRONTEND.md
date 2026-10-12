@@ -147,8 +147,9 @@ issues are consumed by the dashboard only.
 
 - Writes require a live backend; offline mode is read-only sample data (edits
   are not queued for later sync).
-- The backend issue vocabulary has no `rejected` state: setting Rejected sends
-  `closed`, and `closed` reads back as Resolved (documented in §3).
+- Unity legacy dashboard only: it still sends Rejected as `closed` (§3). The
+  backend accepts `rejected` since the DEV4 integration pass, and the web
+  dashboard stores and shows it as-is.
 - Summary cards use a horizontal layout (squeezes but stays usable on narrow
   phones) rather than wrapping.
 - Issue list is global; per-asset issue filtering for large datasets happens
@@ -203,8 +204,8 @@ Files:
 `PATCH /api/issues/:id/status`, `GET /api/locations`. Online/offline state is
 derived from whether the initial `GET /api/assets` succeeds. Status mapping mirrors §3: asset
 `operational|under_maintenance|faulty|retired`; issue
-`open|in_progress|resolved|closed`, with the Unity-only `rejected` shown
-as a local badge and saved as `closed`.
+`open|in_progress|resolved|rejected|closed` (`rejected` persisted by the
+backend since the DEV4 integration pass).
 
 ### Build (no build) / deploy
 

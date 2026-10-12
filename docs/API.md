@@ -61,7 +61,7 @@ Resolve a physical marker (QR / image target id) to its asset.
   { "id": "ISS-001", "assetId": "AST-003", "title": "Channel 2 reads high", "description": "...", "status": "in_progress", "reportedAt": "2026-09-18T10:30:00Z", "reportedBy": "lab-assistant" }
 ]
 ```
-`status` filter ∈ `open|in_progress|resolved|closed`.
+`status` filter ∈ `open|in_progress|resolved|rejected|closed` (`rejected` added by DEV4 integration to match the project spec; `closed` kept for backward compatibility).
 
 ## POST /api/issues
 Request:

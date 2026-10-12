@@ -3,7 +3,7 @@ const express = require('express');
 const db = require('../db');
 
 const router = express.Router();
-const ISSUE_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
+const ISSUE_STATUSES = ['open', 'in_progress', 'resolved', 'rejected', 'closed'];
 const err = (code, message) => ({ error: { code, message } });
 
 router.get('/', async (req, res, next) => {
