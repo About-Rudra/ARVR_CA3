@@ -103,8 +103,8 @@ Invoke-RestMethod "http://localhost:3000/api/issues?assetId=AST-001"   # new iss
 | D–K UI | `ui_flow.js` 14/14 against Postgres-backed API |
 | F Marker recognition | `marker_tracking.js` 5/5 (fake camera, real MindAR) |
 | Failures | backend down (AR toast + dashboard offline banner), invalid marker, nonexistent asset, malformed issue/JSON, DB refused + DB host unreachable (503 within timeout), empty DB (empty lists, `MARKER_NOT_FOUND`): all graceful |
-| M Real phone | **NOT RUN** — needs a deployed HTTPS URL + printed markers |
-| N Production | **NOT RUN** — not deployed yet |
+| M Real phone | **NOT RUN** — needs printed markers + a phone on https://arvrca3.netlify.app |
+| N Production | Neon schema+seed (seed twice): 3/5/5/6/3. `e2e_flow.js https://ar-passport-api.onrender.com` 34/34; `ui_flow.js` on https://arvrca3.netlify.app + https://arvrdashboard.netlify.app 14/14; `marker_tracking.js` on the live AR site 5/5; `env.js` carries the Render origin; `targets.mind` served (200, octet-stream); `Permissions-Policy: camera=(self)`. Test issues created by the suites were deleted afterwards. |
 
 Bugs found and fixed in this pass: forced SSL broke every local/non-SSL
 Postgres (500 on all routes); asset create/edit silently re-pointed a marker

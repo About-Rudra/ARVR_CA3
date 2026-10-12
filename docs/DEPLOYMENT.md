@@ -7,9 +7,17 @@ behind HTTPS, so production frontends must be served over HTTPS (Vercel/Netlify
 do this by default) and the backend should be HTTPS too (Render/Railway default),
 otherwise browsers block the API calls as mixed content.
 
-Current live URLs: backend _(placeholder — nothing deployed yet)_,
-WebAR scanner _(placeholder — nothing deployed yet)_,
-dashboard _(placeholder — nothing deployed yet)_.
+Current live deployment (2026-10-12):
+
+| Piece | Host | URL |
+|-------|------|-----|
+| WebAR scanner | Netlify (base dir `frontend/ar`) | https://arvrca3.netlify.app |
+| Admin dashboard | Netlify (base dir `frontend/dashboard`) | https://arvrdashboard.netlify.app |
+| REST API | Render free web service (`render.yaml`) | https://ar-passport-api.onrender.com |
+| Database | Neon, project `ar-passport`, `aws-ap-southeast-1`, Postgres 18 | pooled connection string in Render `DATABASE_URL` only |
+
+Both Netlify sites have `API_BASE_URL=https://ar-passport-api.onrender.com`.
+Sites and Render deploy from the `About-Rudra/ARVR_CA3` fork's `main`.
 
 ## 0. What deploys from where
 

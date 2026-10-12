@@ -93,8 +93,14 @@ frontend folder over HTTP (`python3 -m http.server` or `npx serve`) — camera
 needs `localhost` or HTTPS. For a phone on LAN, set the page's API URL field
 to `http://<laptop-lan-ip>:3000`. For prod, deploy frontends to Vercel/Netlify
 (HTTPS) and point them at the Render/Railway backend origin (same HTTPS
-requirement to avoid mixed-content blocks). Live URLs: _(placeholders —
-nothing deployed yet)_.
+requirement to avoid mixed-content blocks). Live URLs:
+
+| Piece | URL |
+|-------|-----|
+| WebAR scanner | https://arvrca3.netlify.app (demo: https://arvrca3.netlify.app/?marker=MARK-001) |
+| Admin dashboard | https://arvrdashboard.netlify.app |
+| REST API | https://ar-passport-api.onrender.com (`/health`) |
+| Database | Neon Postgres (project `ar-passport`, `aws-ap-southeast-1`) |
 
 Testing (details + latest results in `docs/TEST_PLAN.md`):
 
