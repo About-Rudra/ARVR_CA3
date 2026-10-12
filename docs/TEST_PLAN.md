@@ -15,7 +15,7 @@ deployment docs. Unity under `Assets/` is legacy (APK alternative path).
 Run the automated gates first (no device needed):
 
 ```powershell
-cd Backend; npm test          # jest + supertest over tests/api.test.js (in-memory seed, no DB needed) — must pass 8/8
+cd Backend; npm test          # jest + supertest over tests/api.test.js (in-memory seed, no DB needed) — must pass 10/10
 node --check ../frontend/ar/app.js; node --check ../frontend/ar/config.js
 node --check ../frontend/dashboard/app.js; node --check ../frontend/dashboard/config.js
 powershell -ExecutionPolicy Bypass -File ../tests/validate_integration.ps1
@@ -79,7 +79,42 @@ Invoke-RestMethod "http://localhost:3000/api/issues?assetId=AST-001"   # new iss
 | K | Invalid marker | `GET /api/assets/marker/MARK-999` or scan/type unknown marker | `404 MARKER_NOT_FOUND`; AR shows "not linked" warning, stays on page | DEV1+DEV2 |
 | L | Nonexistent asset | `GET /api/assets/NOPE-999` | `404 ASSET_NOT_FOUND` envelope | DEV2 |
 | M | Malformed issue | `POST /api/issues` with `{}` / short title / bad `assetId` | `400 VALIDATION_ERROR` (or `404 ASSET_NOT_FOUND`); AR form shows inline message, no exception | DEV2+DEV1 |
-| N | Camera denied / mobile / DB down / empty DB / prod | Deny camera → manual mode; phone over HTTPS → camera flow (manual, NOT run in CI — record device/OS when done); kill Postgres → `500 INTERNAL_ERROR` → offline UI; seed zero rows → dashboard empty-state; deployed HTTPS frontend + HTTPS backend → no mixed-content block | Camera denied: helpful message + manual bar; mobile: untested in CI (mark NOT RUN until a real phone test); DB down: offline UI; prod: `?marker=` flow works end-to-end on hosted URLs | DEV4+DEV2 |
+| N | Camera denied / mobile / DB down / empty DB / prod | Deny camera → manual mode; phone over HTTPS → camera flow (manual, NOT run in CI — record device/OS when done); kill Postgres → `503 DB_UNAVAILABLE` → error UI; seed zero rows → dashboard empty-state; deployed HTTPS frontend + HTTPS backend → no mixed-content block | Camera denied: helpful message + manual bar; mobile: untested in CI (mark NOT RUN until a real phone test); DB down: offline UI; prod: `?marker=` flow works end-to-end on hosted URLs | DEV4+DEV2 |
+
+## Automated suites (DEV4)
+
+| Suite | Command | Covers |
+|-------|---------|--------|
+| API unit/contract | `cd Backend; npm test` | 10 jest+supertest tests, in-memory store |
+| API end-to-end | `node tests/e2e_flow.js http://localhost:3000` (any backend origin, incl. deployed) | 34 checks: health, seed, marker→asset (3 markers), maintenance, issue create → list → `in_progress` persists, all statuses, asset CRUD + 409 conflicts, error envelopes (B, C, F–M) |
+| Browser demo flow | `cd tests/browser; npm install; node ui_flow.js <ar> <dashboard> <api>` | 14 checks in headless Chrome: `?marker=` passport, maintenance, Report Issue, invalid marker, dashboard summary, issue visible, status persists after reload, `rejected`, 360 px layout, no JS errors (D, E, G–K) |
+| Live marker tracking | `cd tests/browser; python make_marker_video.py; node marker_tracking.js <ar> <api>` | Chrome fake camera plays each marker; real MindAR + `targets.mind` must open the right passport for all 5 markers (F) |
+| Integration/static | `pwsh tests/validate_integration.ps1` | file contracts, seed consistency, ports/keys |
+| CI | `.github/workflows/validate.yml` | static checks + jest + e2e against a Postgres 15 service (schema+seed) and in-memory |
+
+## Results log
+
+**2026-10-12 — DEV4 integration pass (local, branch `feature/integration-deployment`)**
+
+| Area | Result |
+|------|--------|
+| A/C Fresh DB | `schema.sql` + `seed.sql` on a clean Postgres 15: OK; seed re-run idempotent; counts 3/5/5/6/3; FK rejects orphan issue |
+| B/F–M API | `e2e_flow.js` 34/34 against Postgres and against in-memory; `npm test` 10/10 |
+| D–K UI | `ui_flow.js` 14/14 against Postgres-backed API |
+| F Marker recognition | `marker_tracking.js` 5/5 (fake camera, real MindAR) |
+| Failures | backend down (AR toast + dashboard offline banner), invalid marker, nonexistent asset, malformed issue/JSON, DB refused + DB host unreachable (503 within timeout), empty DB (empty lists, `MARKER_NOT_FOUND`): all graceful |
+| M Real phone | **NOT RUN** — needs a deployed HTTPS URL + printed markers |
+| N Production | **NOT RUN** — not deployed yet |
+
+Bugs found and fixed in this pass: forced SSL broke every local/non-SSL
+Postgres (500 on all routes); asset create/edit silently re-pointed a marker
+already in use (and deleting that asset then removed `MARK-001`); no DB
+connect timeout (requests hung forever); duplicate asset id → 500 instead of
+409; `rejected` issue status from the spec missing (dashboard showed it as
+Resolved); AR `#loader`/`#start-overlay` never hid (CSS `display:flex`
+overrode `[hidden]`), blocking Maintenance/Report after every scan;
+`MARK-001`/`MARK-003` not recognised by MindAR (too few features);
+`targets.mind` and `MARK-004/005` missing; documented MindAR CLI did not exist.
 
 ## Failure-case matrix (expected behavior, all verified except phone)
 
@@ -91,14 +126,14 @@ Invoke-RestMethod "http://localhost:3000/api/issues?assetId=AST-001"   # new iss
 | Malformed issue | `POST /api/issues {}` / `{assetId,title:"x"}` / `{assetId:"AST-999",title:"Valid"}` | `400 VALIDATION_ERROR` / `400` / `404 ASSET_NOT_FOUND` |
 | Bad issue status | `PATCH /api/issues/ISS-001/status {"status":"bogus"}` | `400 VALIDATION_ERROR` |
 | Unknown issue | `PATCH /api/issues/ISS-999/status` | `404 ISSUE_NOT_FOUND` |
-| DB down (Postgres mode) | Kill Postgres / bad `DATABASE_URL` | Requests fail `500 INTERNAL_ERROR`; frontends show offline UI (restart reseeds in-memory mode) |
+| DB down (Postgres mode) | Kill Postgres / bad `DATABASE_URL` / unreachable host | `503 DB_UNAVAILABLE` envelope within `DB_CONNECT_TIMEOUT_MS` (10 s default, never hangs); `GET /health` → `{ok:true, db:"down"}`; frontends show their error UI |
 | Empty DB | Fresh Postgres, schema only, no seed | Dashboard empty-state ("no assets"); AR scan → `MARKER_NOT_FOUND` until `seed.sql` is run |
 | Camera denied | Deny permission on Start | Blocking explainer + manual simulation bar stays usable |
 | Insecure context | Plain-HTTP URL on a phone (not localhost) | `getUserMedia` blocked → manual mode; fix = serve frontend over HTTPS (Vercel/Netlify default) |
 
 ## Sign-off
 
-Pre-demo gate: `npm test` 8/8 green + `node --check` on all four frontend
+Pre-demo gate: `npm test` 10/10 green + `node tests/e2e_flow.js <backend>` PASS + `node --check` on all four frontend
 JS files green + A–I green against the target backend + J–M spot-checked.
 Record backend URL, commit hash, and (for phone runs) device model, OS, and
 browser version with each run. Known gaps at handoff: seed `imageUrl`s are `example.com` placeholders

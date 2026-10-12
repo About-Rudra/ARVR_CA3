@@ -12,15 +12,15 @@ Features:
 - WebAR scanner (`frontend/ar/`, DEV1, landed): A-Frame + MindAR image tracking
   (`MARK-001..005` → `targetIndex` 0..4), marker → asset passport bottom-sheet,
   maintenance history, issue reporting, `?marker=MARK-001` deep link + manual
-  **Simulate scan** fallback (works with no camera; `targets.mind` missing only
-  disables live camera tracking).
+  **Simulate scan** fallback (works with no camera). Live camera tracking of
+  all 5 markers via the compiled `frontend/ar/targets/targets.mind`.
 - Web dashboard (`frontend/dashboard/`, DEV3, landed): vanilla HTML/CSS/JS, no
   framework, no build step — asset table + filters + detail/maintenance/issues,
   create/edit/delete, issue status changer, offline sample fallback with banner.
 - REST API (`Backend/server.js`, DEV2, landed): `GET /api/assets`,
   `/marker/:markerId`, `/:id/maintenance`, `GET/POST /api/issues`,
   `PATCH /api/issues/:id/status`, `GET /api/locations`, `GET /health` with the
-  `{error:{code,message}}` envelope and in-memory seed fallback (8/8 jest tests).
+  `{error:{code,message}}` envelope and in-memory seed fallback (10/10 jest tests).
 - Unity legacy (`Assets/`, alternative path): ARCore scanner + dashboard scenes,
   `ApiClient`/`ApiConfig`/`LocalSeedProvider` over `seed_assets.json`.
 
@@ -50,7 +50,10 @@ frontend/dashboard/     DEV3 web dashboard (index.html, config.js, app.js, style
 Backend/                DEV2 Express API (server.js, db.js, seedData.js, routes/, tests/api.test.js)
 database/               DEV2 schema.sql + seed.sql (Supabase/Neon compatible)
 docs/                   DEV4 API.md, AR_DEVELOPER.md, BACKEND.md, FRONTEND.md, TEST_PLAN.md, DEPLOYMENT.md
-tests/                  DEV2 api.test.js (mirror) + DEV4 validate_integration.ps1
+tests/                  DEV2 api.test.js (mirror) + DEV4 validate_integration.ps1, e2e_flow.js, browser/ (headless QA)
+scripts/                DEV4 write-frontend-env.js (deploy-time API URL -> frontend env.js)
+tools/mindar-compiler/  DEV4 compiles targets.mind from the marker PNGs (npm run compile)
+render.yaml             DEV4 Render Blueprint for Backend/ (frontends: frontend/*/netlify.toml)
 Assets/                 Unity legacy — DO NOT DELETE (AR/Core/Dashboard scripts, seed_assets.json, scenes, markers)
 .github/workflows/     DEV4 CI (integration check + backend tests)
 .env.example            all env vars (DEV4); Backend/.env.example mirrors backend vars
@@ -62,7 +65,7 @@ Setup (fresh clone):
 git clone <repo-url>; cd ca3-nimi
 cd Backend; npm install
 copy ..\.env.example .env            # leave DATABASE_URL empty for in-memory seed store
-npm test                              # jest + supertest, no DB needed — must pass 8/8
+npm test                              # jest + supertest, no DB needed — must pass 10/10
 npm start                             # http://localhost:3000, check GET /health
 # Real DB (optional for local):
 psql $env:DATABASE_URL -f ..\database\schema.sql -f ..\database\seed.sql
@@ -93,15 +96,27 @@ to `http://<laptop-lan-ip>:3000`. For prod, deploy frontends to Vercel/Netlify
 requirement to avoid mixed-content blocks). Live URLs: _(placeholders —
 nothing deployed yet)_.
 
-Testing: `cd Backend; npm test` (8/8); `node --check` on the four frontend
-JS files; `tests/validate_integration.ps1` (add `-ProbeApi` with backend up);
-manual target-flow probe + full A–N checklists in `docs/TEST_PLAN.md`
-(includes failure cases: backend down, invalid marker, nonexistent asset,
-malformed issue, DB down, empty DB, camera denied).
+Testing (details + latest results in `docs/TEST_PLAN.md`):
 
-Deployment: exact steps in `docs/DEPLOYMENT.md` — static `frontend/ar` +
-`frontend/dashboard` on Vercel/Netlify, `Backend/` on Render/Railway,
-Postgres on Supabase/Neon, Unity APK as alternative. Health checks
+```powershell
+cd Backend; npm test                                   # 10 jest tests, no DB
+node tests/e2e_flow.js http://localhost:3000           # 34-check API flow (also works on the deployed backend)
+cd tests/browser; npm install                          # headless Chrome/Edge QA (local browser)
+node ui_flow.js http://localhost:8000 http://localhost:8001 http://localhost:3000   # 14-check demo flow
+python make_marker_video.py; node marker_tracking.js http://localhost:8000 http://localhost:3000  # 5/5 markers via fake camera
+pwsh tests/validate_integration.ps1                    # static contracts + seed consistency
+```
+
+CI (`.github/workflows/validate.yml`) runs the static checks, jest, and the
+E2E flow against a real Postgres 15 built from `schema.sql` + `seed.sql`.
+Failure cases covered: backend down, invalid marker, nonexistent asset,
+malformed issue, DB down/unreachable (503), empty DB, camera denied.
+
+Deployment: exact steps in `docs/DEPLOYMENT.md` — Postgres on Supabase/Neon
+(run `schema.sql` + `seed.sql`), `Backend/` on Render via the checked-in
+`render.yaml` Blueprint, `frontend/ar` + `frontend/dashboard` as two Netlify
+sites (base directory = folder; `netlify.toml` writes `env.js` from the
+`API_BASE_URL` env var), Unity APK as alternative. Health checks
 (`GET /health`, marker spot-check, `?marker=` render, dashboard round-trip)
 and rollback (host rollback / re-point API URL) included.
 
@@ -117,12 +132,17 @@ Team contributions: DEV1 `frontend/ar/` + WebAR section of
 `frontend/dashboard/` + `docs/FRONTEND.md` web section (Unity dashboard
 scripts legacy); DEV4 (integration, QA, deployment): `README.md`, `docs/`
 TEST_PLAN/DEPLOYMENT, `.env.example`, `.github/workflows`, seed-consistency
-fixes, this quality gate.
+fixes, this quality gate; integration fixes (Postgres SSL/transactions/
+timeouts, `rejected` status, AR overlay bug, MARK-004/005 + trackable
+MARK-001/003, `targets.mind`), deploy config (`render.yaml`, `netlify.toml`,
+`scripts/write-frontend-env.js`), `tests/e2e_flow.js`, `tests/browser/`,
+`tools/mindar-compiler/`.
 
-Known limitations: `targets.mind` missing (compile per
-`frontend/ar/targets/README.md`; camera tracking only — manual mode works);
-seed `imageUrl`s are `example.com` placeholders (placeholder art shows);
+Known limitations: seed `imageUrl`s are `example.com` placeholders (placeholder art shows);
 in-memory mode is ephemeral (restart reseeds; use Postgres for persistence);
-**no auth** on API routes (`admins` table reserved); phone camera flow not run
-in CI (do not claim passes until a real-device test); Render free cold starts
+**no auth** on API routes (`admins` table reserved); marker tracking verified with
+Chrome's fake camera only — a real phone + printed markers test is still
+required (re-print `MARK-001`/`MARK-003`: their artwork changed); issue IDs
+are time-based (`ISS-` + 6 digits), unique in practice but not guaranteed;
+no DELETE for issues; Render free cold starts
 delay first connect (~30–60 s, banners cover it).

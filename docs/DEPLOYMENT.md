@@ -35,11 +35,17 @@ Supabase client libs).
 
 ## 2. Backend (Render _or_ Railway, root dir `Backend/`)
 
-**Render:** New → Web Service → repo, root dir `Backend/` → build `npm ci` →
+**Render (recommended — Blueprint):** push the repo to GitHub → Render
+dashboard → New → **Blueprint** → pick the repo → it reads `render.yaml`
+(service `ar-passport-api`, root `Backend/`, `npm ci --omit=dev`, `npm start`,
+health check `/health`) and prompts for `DATABASE_URL` and `CORS_ORIGIN`
+(secrets are never in the file) → Apply.
+**Render (manual):** New → Web Service → repo, root dir `Backend/` → build `npm ci` →
 start `npm start` → env `PORT` (platform default; code falls back to 3000),
 `DATABASE_URL`, `CORS_ORIGIN` → Deploy → note `https://<svc>.onrender.com`.
 **Railway:** New → GitHub repo → service root `Backend/` → same env → Deploy.
-Verify: `GET https://<svc>/health` → `200 {"ok":true}`; spot-check
+Verify: `GET https://<svc>/health` → `200 {"ok":true,"db":"up"}` (`"down"` =
+check `DATABASE_URL`; `"memory"` = `DATABASE_URL` not set); spot-check
 `GET /api/assets/marker/MARK-001` → `{"assetId":"AST-001"}`.
 Cold starts (~30–60 s Render free) are normal — frontends show their
 offline/unreachable banner, then connect (TEST_PLAN J).
@@ -50,8 +56,19 @@ origin(s), e.g. `https://<dashboard>.vercel.app,https://<ar>.vercel.app`).
 ## 3. Web frontends (Vercel _or_ Netlify — no build step)
 
 Both folders are dependency-free static sites (plain HTML/CSS/JS, CDN only for
-the AR page's A-Frame/MindAR). No `vercel.json`/`netlify.toml` is required;
-create a site per folder:
+the AR page's A-Frame/MindAR). The only "build" is writing `env.js` (the
+backend URL) from the `API_BASE_URL` env var via `scripts/write-frontend-env.js`.
+
+**Netlify (recommended, configs checked in):** Add new site → Import from Git →
+repo → **Base directory `frontend/ar`** (Netlify then reads
+`frontend/ar/netlify.toml`: build command writes `env.js`, publish `.`, camera
+Permissions-Policy) → Environment variables: `API_BASE_URL =
+https://<svc>.onrender.com` (origin, no `/api`) → Deploy. Repeat with base
+directory `frontend/dashboard`. Production builds refuse a localhost URL.
+Changing the backend later = change `API_BASE_URL` and redeploy (`env.js` is
+served `no-cache`).
+
+Other hosts (no config file): create a site per folder:
 
 **Vercel:** New project → repo → Root Directory `frontend/ar` (and a second
 project with Root Directory `frontend/dashboard`) → Framework Preset: Other →
@@ -61,8 +78,10 @@ no build command, output = directory root → Deploy (gets HTTPS by default).
 
 Point each site at the backend via **one** of, in priority order
 (see `frontend/*/config.js`):
-1. `window.__API_BASE_URL` — inject before the app script in the host
-   (e.g. a snippet `<script>window.__API_BASE_URL="https://<svc>.onrender.com";</script>`);
+1. `window.__API_BASE_URL` — set by `env.js` (generated at deploy from
+   `API_BASE_URL`; for hosts without a build step run
+   `API_BASE_URL=https://<svc> node scripts/write-frontend-env.js frontend/ar frontend/dashboard`
+   and upload the result);
 2. the in-page **API base URL** field (persists to `localStorage "AR_API_BASE_URL"`;
    AR page also accepts `?api=https://<svc>` once, which persists);
 3. fallback `http://localhost:3000` applies only when no override is set
@@ -93,7 +112,7 @@ camera-capable mobile browser; denial falls back to manual mode (TEST_PLAN N).
 5. XR Plug-in Management → Android → ARCore checked. Build → install APK →
    grant camera on first scan; denial path in TEST_PLAN N.
 6. Print markers from `Assets/StreamingAssets/markers/` + `Assets/Markers/`
-   (`MARK-001..003` landed) at a fixed physical size for tracking stability.
+   (`MARK-001..005`) at a fixed physical size for tracking stability.
 
 ## 5. Env vars (all documented in root `.env.example`)
 
@@ -101,6 +120,8 @@ camera-capable mobile browser; denial falls back to manual mode (TEST_PLAN N).
 |-----|-------|-------|
 | `PORT` | Backend | `3000` local; platform injects prod port |
 | `DATABASE_URL` | Backend | Pooled Postgres string, or empty for in-memory seed store |
+| `DB_CONNECT_TIMEOUT_MS` | Backend (opt) | Default 10000; DB connect attempts fail with `503 DB_UNAVAILABLE` after this |
+| `PGSSL` | Backend (opt) | `false` forces SSL off (auto-off for `localhost`/`127.0.0.1`/`sslmode=disable`; on for hosted DBs) |
 | `CORS_ORIGIN` | Backend | Empty = allow all (local dev, incl. `localhost:<any-port>` frontends); prod = deployed frontend origin(s), comma-separated |
 | `API_BASE_URL` / `AR_API_BASE_URL` | Frontends + Unity + CI | Deployed backend origin `https://<svc>`; `http://localhost:3000` local-only; web apps resolve `window.__API_BASE_URL` → `localStorage "AR_API_BASE_URL"` → dev default |
 | `SUPABASE_URL` / `SUPABASE_KEY` | Backend (opt) | Only if using Supabase client libs |
@@ -110,7 +131,8 @@ production frontend config — use `__API_BASE_URL` or the in-page setting.
 
 ## 6. Health checks
 
-- `GET {backend}/health` → `200 {"ok":true}` (backend).
+- `GET {backend}/health` → `200 {"ok":true,"db":"up"}` (backend + DB).
+- `node tests/e2e_flow.js https://<svc>` → PASS (full API flow; creates one issue).
 - `GET {backend}/api/assets/marker/MARK-001` → `{"assetId":"AST-001"}` (DB/seed).
 - AR site `?marker=MARK-001` renders passport (frontend→backend wiring).
 - Dashboard Issues tab reflects a newly posted issue after refresh (full loop).
@@ -119,7 +141,7 @@ production frontend config — use `__API_BASE_URL` or the in-page setting.
 
 ```powershell
 git clone <repo-url>; cd ca3-nimi
-cd Backend; npm install; npm test            # jest over in-memory seed, no DB — must pass 8/8
+cd Backend; npm install; npm test            # jest over in-memory seed, no DB — must pass 10/10
 copy ..\.env.example .env                    # set DATABASE_URL for real DB; leave CORS_ORIGIN empty for local dev
 npm start                                     # http://localhost:3000, GET /health
 psql $env:DATABASE_URL -f ../database/schema.sql -f ../database/seed.sql   # real DB only
