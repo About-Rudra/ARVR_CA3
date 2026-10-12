@@ -1,5 +1,11 @@
 /* AR Passport WebAR styles — frontend/ar/styles.css (mobile-first) */
 
+/* app.js shows/hides panels via the `hidden` attribute; ID rules below set
+ * display:flex, which would otherwise override it (loader/overlay never hid). */
+[hidden] {
+  display: none !important;
+}
+
 :root {
   --bg: #0f172a;
   --card: #ffffff;

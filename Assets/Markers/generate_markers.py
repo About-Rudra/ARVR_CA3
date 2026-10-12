@@ -14,6 +14,7 @@ Outputs PNGs next to this script, into Assets/StreamingAssets/markers/ (Unity)
 and into frontend/ar/targets/src/ (WebAR / MindAR compiler input).
 """
 import math
+import random
 import os
 import shutil
 import sys
@@ -65,6 +66,17 @@ def add_id_banner(d, marker_id):
     d.text(((SIZE - tw) / 2, y0 + 25), text, font=font, fill="white")
 
 
+def speckle(d, box, seed, count, color, smin=14, smax=34):
+    """Deterministic small rectangles: adds corner features inside flat regions
+    (MindAR/ARCore need texture; big flat shapes alone tracked poorly)."""
+    rnd = random.Random(seed)
+    x0, y0, x1, y1 = box
+    for _ in range(count):
+        w, h = rnd.randint(smin, smax), rnd.randint(smin, smax)
+        x, y = rnd.randint(int(x0), int(x1 - w)), rnd.randint(int(y0), int(y1 - h))
+        d.rectangle([x, y, x + w, y + h], fill=color)
+
+
 def marker_001():
     """Concentric squares + diagonal wedge (top-left heavy)."""
     img, d = base_image()
@@ -78,6 +90,8 @@ def marker_001():
     # asymmetric wedge, top-left
     d.polygon([(BORDER, BORDER), (BORDER + 260, BORDER), (BORDER, BORDER + 260)], fill="black")
     d.ellipse([BORDER + 60, BORDER + 60, BORDER + 150, BORDER + 150], fill="white")
+    speckle(d, (BORDER + 10, BORDER + 10, SIZE - BORDER - 10, SIZE - BORDER - 200), 1001, 160, "white")
+    speckle(d, (BORDER + 10, BORDER + 10, SIZE - BORDER - 10, SIZE - BORDER - 200), 1002, 60, "black", 10, 24)
     add_id_banner(d, "MARK-001")
     return img
 
@@ -115,6 +129,8 @@ def marker_003():
     d.rectangle([BORDER, BORDER, BORDER + c, BORDER + c], fill="black")
     d.rectangle([SIZE - BORDER - c, BORDER, SIZE - BORDER, BORDER + c], fill="black")
     d.rectangle([BORDER, SIZE - BORDER - 190 - c, BORDER + c, SIZE - BORDER - 190], fill="black")
+    speckle(d, (BORDER + 10, BORDER + 10, SIZE - BORDER - 10, SIZE - BORDER - 200), 3001, 160, "white")
+    speckle(d, (BORDER + 10, BORDER + 10, SIZE - BORDER - 10, SIZE - BORDER - 200), 3002, 60, "black", 10, 24)
     add_id_banner(d, "MARK-003")
     return img
 
